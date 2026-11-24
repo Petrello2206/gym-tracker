@@ -48,6 +48,12 @@ Foto → Schätzen → **In Gym Tracker übernehmen** → in der App bestätigen
 Änderungen an der App landen in diesem Repository. Auf dem Handy die App einmal schliessen und neu öffnen – dann ist die neue Version da.
 Wird `apps-script/Code.gs` geändert: Inhalt im Skript-Editor ersetzen → **Bereitstellen → Bereitstellungen verwalten → Bearbeiten (Stift) → Version: Neue Version → Bereitstellen**. Die URL bleibt gleich.
 
+## Zyklus-Berichte
+
+Nach Woche 6, 13 und 16 erstellt Claude eine Auswertung und legt sie im Drive-Ordner unter **Berichte** ab.
+Die App zeigt sie oben auf der Startseite. Dafür braucht das Skript die Funktion `reports` – nach einem Update von
+`apps-script/Code.gs` den Code ersetzen und eine **neue Version bereitstellen** (siehe Updates).
+
 ## Wenn etwas schiefgeht
 
 - **Sync-Fehler „auth“**: Einrichtungslink erneut öffnen.

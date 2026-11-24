@@ -186,6 +186,10 @@ label.btn{text-align:center}
 .fill-meal{margin-top:12px}
 .fill-mt{font-weight:700;font-size:14px;display:flex;align-items:center;gap:6px}
 .fill-mt .muted{font-weight:400;font-size:12.5px}
+.report-new,.report-link{display:flex;align-items:center;gap:12px;width:100%;font:inherit;color:inherit;cursor:pointer;text-align:left}
+.report-new{border-color:var(--accent);background:var(--accent-soft)}
+.rep-ic{width:36px;height:36px;border-radius:50%;background:var(--card);color:var(--accent);display:flex;align-items:center;justify-content:center;flex:none}
+.rep-ul{margin:6px 0 0;padding-left:20px}.rep-ul li{margin:3px 0}
 .toast{position:fixed;top:12px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);
   padding:8px 14px;border-radius:10px;font-size:14px;z-index:50;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.show{opacity:1}
@@ -263,7 +267,7 @@ async function init(){
   const db=window.GT.db; S.db=db;
   GT.onStatus(st=>{ setStatus({local:'nur auf diesem Gerät',idle:'verbunden',loading:'lädt …',saving:'speichert …',synced:'gespeichert',offline:'offline – wird später gespeichert',error:'Sync-Fehler'}[st.state]||st.state); if(S.view==='koerper') softRender(); });
   setTimeout(()=>{ if(typeof handleHash==='function') handleHash(); },0);
-  syncPlans(); document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') syncPlans(); });
+  syncPlans(); loadReports(); document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible'){ syncPlans(); loadReports(); } });
   if(typeof nutInit==='function') nutInit(db);
   const loadTimer = setTimeout(()=>{ if(!S.ready){ setStatus('Daten noch nicht erreichbar'); renderBanner('Die Daten sind gerade nicht erreichbar. Prüfe die Internetverbindung – die App versucht es weiter.'); } }, 10000);
   const done = key => { S.loaded[key]=true; if(Object.values(S.loaded).every(Boolean)){ S.ready=true; clearTimeout(loadTimer); renderBanner(''); } };
@@ -655,10 +659,11 @@ function progressionHint(ex, last){
 
 /* ---------------- Rendering ---------------- */
 function render(){
-  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on', b.dataset.view===(S.view==='technik'?'training':S.view)));
+  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on', b.dataset.view===(S.view==='technik'||S.view==='bericht'?'training':S.view)));
   const m=$('#main');
   if(S.offline){ m.innerHTML='<div class="card"><h2>Speicher nicht verfügbar</h2><p class="muted">Öffne die App über deinen Claude-Link und melde dich an. Ohne Anmeldung kann nichts gespeichert werden.</p></div>'; return; }
-  if(S.view==='technik') m.innerHTML = viewTechnik();
+  if(S.view==='bericht') m.innerHTML = viewReport();
+  else if(S.view==='technik') m.innerHTML = viewTechnik();
   else if(S.view==='training') m.innerHTML = S.active ? viewActive() : (S.preview ? viewPreview() : viewStart());
   else if(S.view==='verlauf') m.innerHTML = viewProgress();
   else if(S.view==='koerper') m.innerHTML = viewBody();
@@ -666,6 +671,34 @@ function render(){
   if(S.view==='verlauf') drawCharts();
 }
 
+/* ---------- Zyklus-Berichte (von Claude erstellt, liegen in Google Drive) ---------- */
+const REPORT_WEEKS=[6,13,16];
+function reportsRead(){ try{ return JSON.parse(localStorage.getItem('gt-reports-read')||'[]'); }catch(e){ return []; } }
+async function loadReports(){
+  try{ const r=await GT.reports(); if(r){ S.reports=r.sort((a,b)=>a.date<b.date?1:-1); softRender(); } }catch(e){}
+}
+function viewReportBanner(){
+  const list=S.reports||[], read=reportsRead(), info=cycleInfo();
+  const unread=list.find(r=>!read.includes(r.id));
+  if(unread) return '<button class="card report-new" data-action="report-open" data-id="'+esc(unread.id)+'"><span class="rep-ic">'+I('note')+'</span><span style="flex:1;text-align:left"><b>Neuer Bericht: '+esc(unread.title||'Zyklus-Auswertung')+'</b><span class="small muted" style="display:block">'+esc(unread.summary?unread.summary.slice(0,110)+(unread.summary.length>110?' …':''):'Antippen zum Lesen')+'</span></span>'+I('right')+'</button>';
+  let next='';
+  if(info && !info.pre){ const w=REPORT_WEEKS.find(x=>x>=info.week); if(w) next='Nächster Bericht nach Woche '+w+' ('+fmtDate(addDays(info.start,w*7-1))+')'; }
+  if(list.length) return '<button class="card report-link" data-action="report-open" data-id="'+esc(list[0].id)+'">'+I('note')+'<span style="flex:1;text-align:left">Berichte ('+list.length+')'+(next?'<span class="small muted" style="display:block">'+next+'</span>':'')+'</span>'+I('right')+'</button>';
+  return next?'<div class="small muted" style="margin:0 4px 10px;display:flex;gap:6px;align-items:center">'+I('note')+' '+next+'</div>':'';
+}
+function viewReport(){
+  const list=S.reports||[], r=list.find(x=>x.id===S.reportId)||list[0];
+  let h='<div class="card"><div class="row"><button class="btn sm" data-action="report-back">'+I('left')+'</button><div style="flex:1"><h2 style="margin:0">'+esc(r?r.title||'Bericht':'Berichte')+'</h2>'+(r?'<div class="small muted">'+fmtDate(r.date)+(r.dataUntil?' · Daten bis '+fmtDate(r.dataUntil):'')+'</div>':'')+'</div></div></div>';
+  if(!r) return h+'<div class="card empty">Noch keine Berichte.</div>';
+  if(r.summary) h+='<div class="card"><b>Kurz gesagt</b><p style="margin:6px 0 0">'+esc(r.summary)+'</p></div>';
+  (r.sections||[]).forEach(sec=>{
+    h+='<div class="card"><b>'+esc(sec.heading||'')+'</b>'+(sec.text?'<p style="margin:6px 0 0">'+esc(sec.text)+'</p>':'')+
+      (sec.items&&sec.items.length?'<ul class="rep-ul">'+sec.items.map(i=>'<li>'+esc(i)+'</li>').join('')+'</ul>':'')+'</div>';
+  });
+  if(r.proposals&&r.proposals.length) h+='<div class="card" style="border-color:var(--accent)"><b>Vorschläge für den Plan</b><ul class="rep-ul">'+r.proposals.map(p=>'<li>'+esc(p)+'</li>').join('')+'</ul><div class="small muted" style="margin-top:6px">Umgesetzt wird nichts automatisch. Sag Claude, welche Vorschläge du übernehmen willst.</div></div>';
+  if(list.length>1) h+='<div class="sec">Frühere Berichte</div><div class="card"><div class="list">'+list.filter(x=>x.id!==r.id).map(x=>'<div class="item"><span style="flex:1">'+esc(x.title||'Bericht')+'<span class="small muted" style="display:block">'+fmtDate(x.date)+'</span></span><button class="btn sm" data-action="report-open" data-id="'+esc(x.id)+'">Öffnen</button></div>').join('')+'</div></div>';
+  return h;
+}
 function viewStart(){
   const plans=planList();
   if(!plans.length) return S.loaded.plans ? '<div class="card empty">Noch kein Trainingsplan hinterlegt.</div>' : '<div class="empty">Lädt Pläne …</div>';
@@ -674,7 +707,7 @@ function viewStart(){
   const info=cycleInfo(), wp=S.active?null:planWeek(pid), mon=mondayOf(today());
   const rec=wp?(wp.today.status==='train'?{day:wp.today.day}:wp.trainedToday?null:null):null;
   const doneWeek=new Set(workoutsInWeek(mon).filter(w=>w.plan===pid).map(w=>w.day));
-  let h='';
+  let h=viewReportBanner();
   if(info) h+='<div class="cyc'+(info.deload?' deload':'')+'"><b>'+(info.pre?'Zyklus startet am '+fmtDate(info.start):'Woche '+info.week+(info.done?'':' von 16')+' · '+esc(info.name))+'</b>'+
     (info.deload?'<span>Halbe Satzzahl, 3 Wiederholungen Reserve – Erholung ist das Ziel.</span>':info.block2&&info.week===8?'<span>Neu in Block 2: einige Isolationsübungen sind getauscht.</span>':'')+'</div>';
   if(wp) h+=viewTodayCard(wp,pid);
@@ -1129,6 +1162,8 @@ document.addEventListener('click', ev=>{
     case 'week-next': S.weekOff=Math.min(4,(S.weekOff||0)+1); render(); break;
     case 'adapt-apply': { const a=adaptiveTDEE(); if(a&&!a.need&&S.db){ const goal=(S.calc&&S.calc.goal)||'keep', m=macrosFrom(a.tdee*GOALS_C[goal][2], a.weight, goal);
       dbWrite(()=>S.db.doc('settings/nutrition').set({...m, source:'verbrauch', goal, updated:today()})).then(ok=>ok&&toast('Tagesziele angepasst: '+m.kcal+' kcal')); } break; }
+    case 'report-open': { S.reportId=b.dataset.id; S.view='bericht'; const rd=reportsRead(); if(!rd.includes(S.reportId)){ rd.push(S.reportId); try{ localStorage.setItem('gt-reports-read',JSON.stringify(rd)); }catch(e){} } render(); window.scrollTo(0,0); break; }
+    case 'report-back': S.view='training'; render(); window.scrollTo(0,0); break;
     case 'sync-now': GT.pull(); toast('Wird abgeglichen …'); break;
     case 'sync-off': if(confirmTwice(b,'Wirklich trennen?')){ GT.disconnect(); render(); } break;
     case 'export': { const blob=new Blob([JSON.stringify(GT.exportAll())],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='gym-tracker-'+today()+'.json'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),5000); break; }

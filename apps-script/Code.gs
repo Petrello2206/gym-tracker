@@ -63,6 +63,7 @@ function doGet(e) {
   if (!auth_(p.token)) return json_({ error: 'auth' });
   if (p.action === 'ping') return json_({ ok: true });
   if (p.action === 'pull') return json_(loadDb_());
+  if (p.action === 'reports') return json_({ reports: listReports_() });
   return json_({ ok: true, info: 'Gym Tracker Backend' });
 }
 
@@ -88,6 +89,19 @@ function doPost(e) {
   } finally {
     lock.releaseLock();
   }
+}
+
+/** Zyklus-Berichte: JSON-Dateien im Unterordner "Berichte" (von Claude erstellt) */
+function listReports_() {
+  const it = getFolder_().getFoldersByName('Berichte');
+  if (!it.hasNext()) return [];
+  const files = it.next().getFiles(), out = [];
+  while (files.hasNext()) {
+    const f = files.next();
+    if (!/\.json$/.test(f.getName())) continue;
+    try { const r = JSON.parse(f.getBlob().getDataAsString('UTF-8')); r.id = r.id || f.getId(); out.push(r); } catch (e) {}
+  }
+  return out;
 }
 
 /* ------------------------------------------------------------------ */

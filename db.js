@@ -118,6 +118,7 @@
     async connect(url,token){ cfg={url:url.trim(), token:token.trim()}; await call({action:'ping'}); save(LS_CFG,cfg); await pull(); return true; },
     disconnect(){ cfg=null; localStorage.removeItem(LS_CFG); setState('local'); },
     pull, flush,
+    async reports(){ if(!cfg||!navigator.onLine) return null; const j=await call({action:'reports'}); return j.reports||[]; },
     pending(){ return outbox.length; },
     seedIfEmpty(path,data){ if(!store.docs[path] && !store.deleted[path]){ store.docs[path]={data:clone(data),ts:1}; persist(); } },
     exportAll(){ const c={}; for(const [p,d] of Object.entries(store.docs)){ const i=p.lastIndexOf('/'); const col=p.slice(0,i), id=p.slice(i+1); (c[col]=c[col]||{})[id]=d.data; } return {exportedAt:new Date().toISOString(), app:'Gym Tracker', collections:c}; },
