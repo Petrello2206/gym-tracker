@@ -9,7 +9,8 @@ Persönliche Trainings- und Ernährungs-App (Web-App / PWA).
 |---|---|
 | `index.html` | Die App (Training, Fortschritt, Körper, Ernährung) |
 | `db.js` | Speicher auf dem Gerät + Synchronisation mit dem Google-Skript |
-| `seed.js` | Startdaten (Trainingsplan, Technik-Hinweise) |
+| `plans.json` | Trainingspläne und Technik-Hinweise – neue `version` wird von der App automatisch übernommen |
+| `seed.js` | Startdaten, falls noch nichts gespeichert ist |
 | `sw.js`, `manifest.webmanifest`, `icons/` | Installierbar und offline nutzbar |
 | `apps-script/Code.gs` | Google-Skript: Daten in Google Drive, tägliche Backups |
 

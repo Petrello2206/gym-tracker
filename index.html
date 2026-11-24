@@ -263,6 +263,7 @@ async function init(){
   const db=window.GT.db; S.db=db;
   GT.onStatus(st=>{ setStatus({local:'nur auf diesem Gerät',idle:'verbunden',loading:'lädt …',saving:'speichert …',synced:'gespeichert',offline:'offline – wird später gespeichert',error:'Sync-Fehler'}[st.state]||st.state); if(S.view==='koerper') softRender(); });
   setTimeout(()=>{ if(typeof handleHash==='function') handleHash(); },0);
+  syncPlans(); document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') syncPlans(); });
   if(typeof nutInit==='function') nutInit(db);
   const loadTimer = setTimeout(()=>{ if(!S.ready){ setStatus('Daten noch nicht erreichbar'); renderBanner('Die Daten sind gerade nicht erreichbar. Prüfe die Internetverbindung – die App versucht es weiter.'); } }, 10000);
   const done = key => { S.loaded[key]=true; if(Object.values(S.loaded).every(Boolean)){ S.ready=true; clearTimeout(loadTimer); renderBanner(''); } };
@@ -289,6 +290,20 @@ async function init(){
     S.body = snap.docs.map(d=>({id:d.id, ...d.data()}));
     if(!snap.metadata.fromCache) done('body'); if(S.view==='koerper') softRender();
   }, onErr);
+}
+
+/* Trainingspläne aus dem Repository (plans.json) übernehmen, wenn dort eine neuere Version liegt */
+async function syncPlans(){
+  try{
+    const r=await fetch('plans.json?v='+Date.now(),{cache:'no-store'}); if(!r.ok) return;
+    const src=await r.json(); if(!src||!src.version||!src.plans) return;
+    const meta=await S.db.doc('meta/plans').get(); const cur=meta.exists?(meta.data().version||0):0;
+    if(src.version<=cur) return;
+    for(const [id,plan] of Object.entries(src.plans)) await S.db.doc('plans/'+id).set(plan);
+    if(src.library) await S.db.doc('library/exercises').set(src.library);
+    await S.db.doc('meta/plans').set({version:src.version, updated:src.updated||null, appliedAt:new Date().toISOString()});
+    if(cur) toast('Trainingsplan aktualisiert');
+  }catch(e){ console.warn('Plan-Update nicht möglich',e); }
 }
 
 /* Nicht neu zeichnen, während ein Eingabefeld aktiv ist (Fokus bleibt erhalten) */
