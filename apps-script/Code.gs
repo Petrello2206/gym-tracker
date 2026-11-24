@@ -11,6 +11,8 @@
 const FOLDER_NAME = 'Gym Tracker Backup';
 const DB_FILE = 'gym-tracker-db.json';
 const APP_URL = 'https://petrello2206.github.io/gym-tracker/';
+// Web-App-URL aus "Bereitstellen → Bereitstellungen verwalten" (endet auf /exec) hier eintragen:
+const WEBAPP_URL = '';
 
 /* ------------------------------------------------------------------ */
 /* 1) Einmal ausführen: setup                                          */
@@ -37,9 +39,14 @@ function setup() {
 /* 2) Nach dem Bereitstellen ausführen: Link fürs Handy                */
 /* ------------------------------------------------------------------ */
 function zeigeEinrichtungslink() {
-  const url = ScriptApp.getService().getUrl();
+  const url = WEBAPP_URL || ScriptApp.getService().getUrl();
   const token = PropertiesService.getScriptProperties().getProperty('TOKEN');
   if (!url) { Logger.log('Noch nicht als Web-App bereitgestellt.'); return; }
+  if (!/\/exec$/.test(url)) {
+    Logger.log('Die gefundene URL ist die Test-URL (' + url + ') – die funktioniert nicht in der App.\n' +
+      'Öffne Bereitstellen → Bereitstellungen verwalten, kopiere die Web-App-URL (endet auf /exec), trage sie oben bei WEBAPP_URL ein, speichere und führe diese Funktion nochmals aus.');
+    return;
+  }
   const link = APP_URL + '#setup=' + encodeURIComponent(url) + '&t=' + token;
   Logger.log('Öffne diesen Link auf dem Handy (z. B. per Mail an dich selbst schicken):\n' + link);
   // zusätzlich als Datei in Drive ablegen, damit du ihn leicht aufs Handy bekommst

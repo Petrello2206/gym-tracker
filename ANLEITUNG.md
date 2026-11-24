@@ -27,7 +27,8 @@ Dauer: etwa 15 Minuten, am besten am PC.
 2. Zahnrad bei „Typ auswählen“ → **Web-App**.
 3. *Ausführen als*: **Ich** · *Zugriff*: **Jeder** → **Bereitstellen**.
    („Jeder“ ist nötig, damit die App das Skript erreicht. Geschützt ist es durch einen geheimen Schlüssel, den nur deine App kennt.)
-4. In der Funktionsauswahl **zeigeEinrichtungslink** wählen → **Ausführen**.
+4. Kopiere die angezeigte **Web-App-URL** (endet auf `/exec`) und trage sie oben im Code bei `const WEBAPP_URL = '';` zwischen die Anführungszeichen ein → **Speichern**.
+5. In der Funktionsauswahl **zeigeEinrichtungslink** wählen → **Ausführen**.
    Der Link steht im Protokoll und zusätzlich in der Datei **EINRICHTUNGSLINK.txt** im Drive-Ordner.
 
 ## 4. Auf dem Handy einrichten
