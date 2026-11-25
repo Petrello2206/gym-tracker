@@ -279,7 +279,7 @@ async function init(){
   GT.onStatus(st=>{ setStatus({local:'nur auf diesem Gerät',idle:'verbunden',loading:'lädt …',saving:'speichert …',synced:'gespeichert',offline:'offline – wird später gespeichert',error:'Sync-Fehler'}[st.state]||st.state); if(S.view==='koerper') softRender(); });
   const runHash=()=>{ if(typeof handleHash==='function') handleHash(); else setTimeout(runHash,50); };
   if(document.readyState==='complete') runHash(); else window.addEventListener('load', runHash);
-  syncPlans(); loadReports(); document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible'){ syncPlans(); loadReports(); } });
+  syncPlans(); loadReports(); document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible'){ syncPlans(); loadReports(); checkUpdate(); } });
   if(typeof nutInit==='function') nutInit(db);
   const loadTimer = setTimeout(()=>{ if(!S.ready){ setStatus('Daten noch nicht erreichbar'); renderBanner('Die Daten sind gerade nicht erreichbar. Prüfe die Internetverbindung – die App versucht es weiter.'); } }, 10000);
   const done = key => { S.loaded[key]=true; if(Object.values(S.loaded).every(Boolean)){ S.ready=true; clearTimeout(loadTimer); renderBanner(''); } };
@@ -310,6 +310,12 @@ async function init(){
   }, onErr);
 }
 
+/* Neue App-Version erkennen: beim Zurückkehren in die App prüfen und neu laden, wenn gerade nichts eingegeben wird */
+const APP_VERSION='15';
+async function checkUpdate(){
+  try{ const r=await fetch('version.json?'+Date.now(),{cache:'no-store'}); if(!r.ok) return; const v=(await r.json()).version;
+    if(v && v!==APP_VERSION && !S.active && !S.nutAdd && !(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))) location.reload(); }catch(e){}
+}
 /* Trainingspläne aus dem Repository (plans.json) übernehmen, wenn dort eine neuere Version liegt */
 async function syncPlans(){
   try{
@@ -1639,12 +1645,13 @@ function viewNutAdd(){
     } else {
       h+='<div class="last">Barcode <b>'+esc(A.code)+'</b> ist nicht in Open Food Facts. Fotografiere die Nährwerttabelle und lass sie von Claude lesen – dann ist das Produkt gespeichert. Oder erfasse jetzt nur die Menge und trage die Werte später nach.</div>'+
         '<button class="btn primary block" style="margin-top:10px" data-action="nut-estimate" data-code="'+esc(A.code)+'">'+I('camera')+' Nährwerttabelle in Claude lesen</button>'+
-        '<form id="pendForm" style="margin-top:10px"><div class="field"><label>Was ist es? (optional)</label><input name="label" placeholder="z. B. Proteinriegel Schoko" value="'+esc((S.pending[A.code]&&S.pending[A.code].label)||'')+'"></div>'+
-        '<div class="field"><label>Menge (g)</label><input name="grams" inputmode="decimal"></div><button class="btn primary block">Erfassen</button></form>'+
-        '<details style="margin-top:12px"'+(S.pending[A.code]?' open':'')+'><summary class="small"><b>Werte selbst eintragen (pro 100 g)</b></summary>'+
-        '<form id="per100Form" style="margin-top:8px"><div class="field"><label>Name</label><input name="name" value="'+esc((S.pending[A.code]&&S.pending[A.code].label)||'')+'"></div><div class="grid2">'+
+        '<div class="sec" style="margin:16px 0 6px">Oder Werte von der Packung eintippen (pro 100 g)</div>'+
+        '<form id="per100Form"><div class="field"><label>Name</label><input name="name" value="'+esc((S.pending[A.code]&&S.pending[A.code].label)||'')+'"></div><div class="grid2">'+
         MACROS.map(([k,l,u])=>'<div class="field"><label>'+l+' ('+u+'/100 g)</label><input name="'+k+'" inputmode="decimal"></div>').join('')+
-        '</div><div class="small muted" style="margin-bottom:8px">Gilt für alle Einträge mit diesem Barcode – auch die bereits erfassten.</div><button class="btn primary block">Speichern</button></form></details>';
+        '</div><div class="small muted" style="margin-bottom:8px">Gilt für alle Einträge mit diesem Barcode – auch die bereits erfassten.</div><button class="btn primary block">Nährwerte speichern</button></form>'+
+        '<details style="margin-top:14px"><summary class="small"><b>Nur Menge erfassen, Werte später</b></summary>'+
+        '<form id="pendForm" style="margin-top:10px"><div class="field"><label>Was ist es? (optional)</label><input name="label" placeholder="z. B. Proteinriegel Schoko" value="'+esc((S.pending[A.code]&&S.pending[A.code].label)||'')+'"></div>'+
+        '<div class="field"><label>Menge (g)</label><input name="grams" inputmode="decimal"></div><button class="btn block">Erfassen</button></form></details>';
     }
   } else if(A.mode==='off'){
     h+='<div class="last">'+I('clock')+' Suche Barcode '+esc(A.code)+' in Open Food Facts …</div>';
