@@ -1575,7 +1575,7 @@ function viewNutrition(){
 
   const pend=Object.values(S.pending).sort((a,b)=>(b.firstScan||'').localeCompare(a.firstScan||''));
   if(pend.length){
-    h+='<div class="card"><h3>Offene Barcodes ('+pend.length+')</h3><div class="list">'+
+    h+='<div class="card"><div class="row"><h3 style="margin:0;flex:1">Offene Barcodes ('+pend.length+')</h3><button class="btn sm" data-action="nut-recheck">Abgleichen</button></div><div class="small muted" style="margin:4px 0 6px">Sucht alle offenen Barcodes erneut bei Open Food Facts – die Datenbank wächst laufend.</div><div class="list">'+
       pend.map(p=>'<div class="item small"><span style="flex:1">'+esc(p.label||'Ohne Namen')+'<br><span class="muted">'+esc(p.barcode)+'</span></span><button class="btn sm" data-action="nut-openpend" data-code="'+esc(p.barcode)+'">Nährwerte</button></div>').join('')+'</div></div>';
   }
   const GOALS=[['protein','Protein','g'],['kcal','Kalorien','kcal'],['carbs','Kohlenhydrate','g'],['fat','Fett','g']];
@@ -1812,6 +1812,9 @@ function nutClick(b,act){
       (async()=>{ for(const d of c.days){ await saveDay(d, day=>{ src.forEach(it=>{ const {id,addedAt,...rest}=it; day.items.push({...rest, id:Date.now().toString(36)+Math.random().toString(36).slice(2,6), addedAt:new Date().toISOString()}); }); }); } toast(c.meal+' auf '+c.days.length+' Tag(e) kopiert'); })(); break; }
     case 'nut-mode': S.nutAdd={mode:b.dataset.mode, meal:(S.nutAdd&&S.nutAdd.meal)||defaultMeal()}; render(); break;
     case 'nut-close': S.nutAdd=null; S.picker=null; render(); break;
+    case 'nut-recheck': { b.disabled=true; b.textContent='Suche …'; (async()=>{ let ok=0; const codes=Object.keys(S.pending);
+        for(const code of codes){ const p=await lookupOFF(code); if(p){ S.products[code]=p; await dbWrite(()=>S.db.doc('products/'+code).set(p)); await dbWrite(()=>S.db.doc('pending/'+code).delete()); ok++; } else await dbWrite(()=>S.db.doc('pending/'+code).update({status:'nicht gefunden', checked:today()})); }
+        toast(ok?ok+' von '+codes.length+' gefunden und eingetragen':'Keiner der '+codes.length+' Barcodes ist bei Open Food Facts'); render(); })(); break; }
     case 'nut-openpend': S.nutAdd={meal:defaultMeal()}; openProduct(b.dataset.code); window.scrollTo(0,0); break;
     case 'nut-estimate': openEstimator(b.dataset.code||null); break;
     case 'nut-pickphoto': S.picker=b.dataset.k; render(); break;
