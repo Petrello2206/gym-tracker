@@ -1544,11 +1544,19 @@ function viewNutrition(){
     h+='<div class="meal-list">';
     items.forEach(it=>{
       const m=itemMacros(it);
-      h+='<div class="mi"><div class="mi-main"><div class="mi-name">'+(it.est?'≈ ':'')+esc(itemName(it))+'</div><div class="mi-sub">'+
+      h+='<div class="mi"><div class="mi-main" data-action="nut-move" data-id="'+esc(it.id)+'" style="cursor:pointer"><div class="mi-name">'+(it.est?'≈ ':'')+esc(itemName(it))+'</div><div class="mi-sub">'+
         (m? (it.grams?r0(it.grams)+' g · ':'')+r0(m.kcal)+' kcal · KH '+r0(m.carbs)+' g · F '+r0(m.fat)+' g' : I('clock')+' Nährwerte fehlen')+'</div></div>'+
         (m?'<span class="pill">'+r0(m.protein)+' g</span>':'')+
         (S.confirm==='nutdel:'+it.id ? '<button class="btn sm danger" data-action="nut-del-yes" data-id="'+esc(it.id)+'">Löschen</button><button class="btn sm ghost" data-action="confirm-no">'+I('x')+'</button>'
           : '<button class="btn sm ghost" data-action="nut-del" data-id="'+esc(it.id)+'" aria-label="Löschen">'+I('trash')+'</button>')+'</div>';
+      if(S.moveItem && S.moveItem.id===it.id){
+        const M=S.moveItem, quick=[[shiftDate(date,-1),'Vortag'],[date,'Gleicher Tag'],[shiftDate(date,1),'Folgetag']];
+        h+='<div class="copybox" style="margin:0 -16px"><div class="small"><b>Verschieben nach</b></div>'+
+          '<div class="daychips">'+MEALS.map(ml=>'<button class="chip'+(M.meal===ml?' on':'')+'" data-action="nut-move-meal" data-v="'+ml+'">'+ml+'</button>').join('')+'</div>'+
+          '<div class="daychips">'+quick.map(([d,l])=>'<button class="chip'+(M.date===d?' on':'')+'" data-action="nut-move-day" data-v="'+d+'">'+l+'</button>').join('')+
+          '<input type="date" class="chip" data-f="movedate" value="'+M.date+'" max="'+shiftDate(today(),NUT_AHEAD)+'"></div>'+
+          '<div class="grid2" style="margin-top:8px"><button class="btn sm" data-action="nut-move-cancel">Abbrechen</button><button class="btn sm primary" data-action="nut-move-go" '+(M.meal===it.meal&&M.date===date?'disabled':'')+'>Verschieben</button></div></div>';
+      }
     });
     h+='</div></div>';
   });
@@ -1784,9 +1792,19 @@ window.addEventListener('hashchange', handleHash);
 /* --- Ereignisse --- */
 function nutClick(b,act){
   switch(act){
-    case 'nut-prev': S.nutDate=shiftDate(S.nutDate,-1); S.nutAdd=null; render(); break;
-    case 'nut-next': if(S.nutDate<shiftDate(today(),NUT_AHEAD)){ S.nutDate=shiftDate(S.nutDate,1); S.nutAdd=null; S.copyMeal=null; render(); } break;
+    case 'nut-prev': S.nutDate=shiftDate(S.nutDate,-1); S.nutAdd=null; S.moveItem=null; S.copyMeal=null; render(); break;
+    case 'nut-next': if(S.nutDate<shiftDate(today(),NUT_AHEAD)){ S.nutDate=shiftDate(S.nutDate,1); S.nutAdd=null; S.copyMeal=null; S.moveItem=null; render(); } break;
     case 'nut-today': S.nutDate=today(); S.nutAdd=null; S.copyMeal=null; render(); break;
+    case 'nut-move': { const it=dayItems(S.nutDate).find(i=>i.id===b.dataset.id); S.moveItem=(S.moveItem&&S.moveItem.id===b.dataset.id)?null:(it?{id:it.id, meal:it.meal, date:S.nutDate}:null); render(); break; }
+    case 'nut-move-meal': if(S.moveItem){ S.moveItem.meal=b.dataset.v; render(); } break;
+    case 'nut-move-day': if(S.moveItem){ S.moveItem.date=b.dataset.v; render(); } break;
+    case 'nut-move-cancel': S.moveItem=null; render(); break;
+    case 'nut-move-go': { const M=S.moveItem, from=S.nutDate, it=dayItems(from).find(i=>i.id===M.id); S.moveItem=null; if(!it) break;
+      (async()=>{
+        if(M.date===from){ await saveDay(from, d=>{ const x=d.items.find(i=>i.id===M.id); if(x) x.meal=M.meal; }); }
+        else { await saveDay(M.date, d=>{ d.items.push({...it, meal:M.meal}); }); await saveDay(from, d=>{ d.items=d.items.filter(i=>i.id!==M.id); }); }
+        toast('Verschoben nach '+M.meal+(M.date!==from?', '+fmtDate(M.date):''));
+      })(); render(); break; }
     case 'nut-copy': S.copyMeal={meal:b.dataset.meal, days:[]}; render(); break;
     case 'nut-copy-day': { const c=S.copyMeal; if(c){ const d=b.dataset.d; c.days=c.days.includes(d)?c.days.filter(x=>x!==d):[...c.days,d]; render(); } break; }
     case 'nut-copy-cancel': S.copyMeal=null; render(); break;
@@ -1915,6 +1933,7 @@ document.addEventListener('input', ev=>{
   const el=ev.target; if(!S.nutAdd) return;
   if(el.dataset.f==='nutq'){ S.nutAdd.q=el.value; const pos=el.selectionStart; render(); const n=document.querySelector('[data-f=nutq]'); if(n){ n.focus(); try{ n.setSelectionRange(pos,pos); }catch(_){} } }
   if(el.dataset.f==='dishdesc'){ S.nutAdd.desc=el.value; return; }
+  if(el.dataset.f==='movedate' && S.moveItem && el.value){ S.moveItem.date=el.value; softRender(); }
   if(el.dataset.f==='impgrams' && S.nutAdd){ S.nutAdd.grams=el.value; softRender(); }
   if(el.dataset.f==='nutgrams'){ S.nutAdd.grams=el.value; const m=itemMacros({barcode:S.nutAdd.code,grams:num(el.value)||0}); const pv=document.getElementById('nutPreview'); if(pv&&m) pv.textContent=r0(m.kcal)+' kcal · P '+r0(m.protein)+' g · KH '+r0(m.carbs)+' g · F '+r0(m.fat)+' g'; }
 });
