@@ -259,15 +259,13 @@ function garminGet_(path) {
   return JSON.parse(r.getContentText());
 }
 
-/** Holt Ausdauer-Einheiten der letzten Tage und speichert sie als cardio/<id> in der Datenbank */
+/** Holt nur Velo-Einheiten (Velo, Indoor-Velo, Ergometer) der letzten Tage – keine Gesundheits- oder anderen Daten – und speichert sie als cardio/<id> in der Datenbank */
 function garminSync(days) {
   days = typeof days === 'number' ? days : 14;
   const fmt = d => Utilities.formatDate(d, 'Europe/Zurich', 'yyyy-MM-dd');
   const start = fmt(new Date(Date.now() - days * 86400000)), end = fmt(new Date(Date.now() + 86400000));
   let list = garminGet_('/activitylist-service/activities/search/activities?start=0&limit=100&sortOrder=desc&startDate=' + start + '&endDate=' + end);
   if (!Array.isArray(list)) list = list.activityList || list.activities || list.items || [];
-  // ein Beispiel zur Kontrolle der Felder ablegen
-  if (list.length) { const f = findFile_(getFolder_(), 'garmin-beispiel.json'); const s = JSON.stringify(list[0], null, 1); if (f) f.setContent(s); else getFolder_().createFile('garmin-beispiel.json', s, 'application/json'); }
   const lock = LockService.getScriptLock(); lock.waitLock(20000);
   let neu = 0;
   try {
@@ -275,7 +273,7 @@ function garminSync(days) {
     list.forEach(a => {
       const id = String(a.activityId || a.id || a.summaryId || ''); if (!id) return;
       const type = String((a.activityType && (a.activityType.typeKey || a.activityType)) || a.activityTypeKey || a.type || '').toLowerCase();
-      if (/strength|fitness_equipment|yoga|pilates/.test(type)) return;   // Krafttraining läuft über den Gym Tracker
+      if (!/cycl|bik|ride|spin/.test(type)) return;   // nur Velo-Einheiten übernehmen, alles andere bleibt bei Garmin
       const z = [1, 2, 3, 4, 5].map(i => Math.round((a['hrTimeInZone_' + i] || 0) / 60));
       const startLocal = String(a.startTimeLocal || a.startTime || a.startTimeGMT || '');
       const doc = { id: id, source: 'garmin', date: startLocal.slice(0, 10), start: startLocal.slice(11, 16), type: type, name: a.activityName || a.name || type,
