@@ -149,6 +149,12 @@ label.btn{text-align:center}
 .wd.train{background:var(--accent-soft);color:var(--accent)}
 .wd.today{outline:2px solid var(--accent)}
 .wd.past.rest{opacity:.6}
+.wd.velo{background:transparent;color:var(--text);box-shadow:inset 0 0 0 1.5px var(--accent-soft)}
+.wd.velo.vdone{background:var(--ok-soft);color:var(--ok)}
+.wd b .ic{width:14px;height:14px;vertical-align:-2px}
+.wd .vb{display:block;font-style:normal;line-height:1;margin-top:2px}
+.wd .vb .ic{width:12px;height:12px}
+.wd .vb.ok{color:var(--ok)}
 .ex.exdone{background:var(--ok-soft);border-color:transparent;padding:10px 12px}
 .ex.exdone h3{color:var(--ok)}
 .ex.exdone .target{color:var(--ok);opacity:.85}
@@ -311,7 +317,7 @@ async function init(){
 }
 
 /* Neue App-Version erkennen: beim Zurückkehren in die App prüfen und neu laden, wenn gerade nichts eingegeben wird */
-const APP_VERSION='15';
+const APP_VERSION='16';
 async function checkUpdate(){
   try{ const r=await fetch('version.json?'+Date.now(),{cache:'no-store'}); if(!r.ok) return; const v=(await r.json()).version;
     if(v && v!==APP_VERSION && !S.active && !S.nutAdd && !(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))) location.reload(); }catch(e){}
@@ -413,6 +419,40 @@ function dayType(id){ return String(id||'').split('-')[0]; }
    ausgelassene Trainings zuerst (am längsten nicht gemacht), und alles muss bis Sonntag passen. */
 const WD=['Mo','Di','Mi','Do','Fr','Sa','So'];
 function shortDay(d){ return d.name.replace('Brust & Rücken','B&R').replace('Arme & Schulter','A&S').replace(' – ',' '); }
+/* Velo-Einheiten in die Trainingswoche einplanen.
+   Grundlage: Interferenz zwischen Ausdauer und Kraft wirkt vor allem lokal und ist bei lockerem Radfahren klein;
+   am sichersten sind getrennte Tage bzw. ≥ 6 h Abstand. Fürs Knie: Einheiten verteilen (nicht 2 Tage am Stück),
+   damit die Reaktion am Morgen danach beurteilt werden kann.
+   Reihenfolge der Ziele: 1) Tage ohne Krafttraining, 2) keine zwei Velo-Tage hintereinander, 3) gleichmässig verteilt. */
+const veloOn=iso=>(S.cardio||[]).some(c=>c.date===iso&&isBike(c));
+function planVelo(days){
+  const P=cardioPlan();
+  days.forEach(c=>{ if(veloOn(c.iso)) c.velo='done'; });
+  const need=Math.max(0, P.sessions-days.filter(c=>c.velo==='done').length);
+  const cand=days.map((c,i)=>({c,i})).filter(x=>!x.c.past && x.c.velo!=='done');
+  const k=Math.min(need, cand.length); if(!k){ planVelo._last=days[6].velo?days[6].iso:null; return; }
+  const doneIdx=days.map((c,i)=>c.velo==='done'?i:-1).filter(i=>i>=0);
+  const prevVelo=veloOn(addDays(days[0].iso,-1))||planVelo._last===addDays(days[0].iso,-1);
+  let best=null;
+  (function rec(start, pick){
+    if(pick.length===k){
+      const idx=[...doneIdx, ...pick.map(x=>x.i)].sort((a,b)=>a-b);
+      let adj=0, gapPen=0; for(let j=1;j<idx.length;j++){ const g=idx[j]-idx[j-1]; if(g===1) adj++; gapPen+=Math.abs(g-7/Math.max(1,idx.length)); }
+      if(prevVelo && idx[0]===0) adj++;
+      const shared=pick.filter(x=>x.c.status==='train'||x.c.status==='done').length;
+      const sc=shared*10+adj*4+gapPen*0.5+pick.reduce((a,x)=>a+x.i,0)*0.01;
+      if(!best||sc<best.sc) best={sc, pick:pick.slice()};
+      return;
+    }
+    for(let j=start;j<cand.length;j++){ pick.push(cand[j]); rec(j+1,pick); pick.pop(); }
+  })(0, []);
+  planVelo._last=null;
+  best.pick.forEach(({c})=>{
+    c.velo='plan'; c.veloMin=P.min; c.veloShared=(c.status==='train'||c.status==='done');
+    if(c.status==='rest' && !c.past) c.label='Velo';
+  });
+  if(days[6].velo) planVelo._last=days[6].iso;
+}
 /* offset: 0 = diese Woche, 1 = nächste Woche, -1 = letzte Woche … */
 function planWeek(pid, offset){
   offset=offset||0;
@@ -485,6 +525,7 @@ function planWeek(pid, offset){
       }
       days.push(cell);
     }
+    planVelo(days);
     if(dropped>0){
       const msg=' Diese Woche passen nicht mehr alle Trainings – '+dropped+' fällt weg. Das ist besser, als dieselben Muskeln nach 24 h erneut zu belasten oder 4 Tage am Stück zu trainieren; ein ausgelassenes Training kostet kaum Fortschritt.';
       const first=days.find(c=>c.iso>=t&&c.status!=='done'); if(first) first.reason=(first.reason||'')+msg;
@@ -515,22 +556,39 @@ function viewWeekStrip(pid){
   const title=off===0?'Diese Woche':off===1?'Nächste Woche':off===-1?'Letzte Woche':(off>0?'In '+off+' Wochen':'Vor '+(-off)+' Wochen');
   const sub=fmtDate(wp.mon).split(',')[1].trim()+' – '+fmtDate(addDays(wp.mon,6)).split(',')[1].trim()+(wk&&wk>=1&&wk<=16?' · Woche '+wk+(ph?' · '+ph.name:''):'');
   let h='<div class="wnav"><button class="btn sm" data-action="week-prev" '+(off<=-8?'disabled style="opacity:.4"':'')+'>'+I('left')+'</button><div><b>'+title+'</b><span>'+esc(sub)+'</span></div><button class="btn sm" data-action="week-next" '+(off>=4?'disabled style="opacity:.4"':'')+'>'+I('right')+'</button></div>';
-  h+='<div class="wstrip">'+wp.days.map(d=>'<div class="wd '+d.status+(d.isToday?' today':'')+(d.past?' past':'')+'"><span>'+d.wd+'</span><b>'+(d.status==='done'?''+I('check')+'':d.status==='train'?'●':'–')+'</b><small>'+esc(d.status==='rest'?'Ruhe':d.label)+'</small></div>').join('')+'</div>';
+  const strength=d=>d.status==='done'||d.status==='train';
+  h+='<div class="wstrip">'+wp.days.map(d=>{
+    const vOnly=d.velo&&!strength(d);
+    const top=d.status==='done'?I('check'):d.status==='train'?'●':vOnly?I('bike'):'–';
+    const lab=d.status==='rest'?(vOnly?'Velo':'Ruhe'):d.label;
+    const v=d.velo&&strength(d)?'<i class="vb'+(d.velo==='done'?' ok':'')+'">'+I('bike')+'</i>':vOnly&&d.velo==='done'?'<i class="vb ok">'+I('check')+'</i>':'';
+    return '<div class="wd '+d.status+(vOnly?' velo'+(d.velo==='done'?' vdone':''):'')+(d.isToday?' today':'')+(d.past?' past':'')+'"><span>'+d.wd+'</span><b>'+top+'</b><small>'+esc(lab)+'</small>'+v+'</div>';
+  }).join('')+'</div>';
+  if(wp.days.some(d=>d.velo)) h+='<div class="small muted" style="margin-top:6px">'+I('bike')+' Velo: '+wp.days.filter(d=>d.velo).map(d=>d.wd+(d.velo==='done'?' ✓':'')).join(', ')+' · wenn möglich an Tagen ohne Krafttraining.</div>';
   if(off>0) h+='<div class="small muted" style="margin-top:6px">Vorschau – passt sich an, sobald du trainierst oder Tage auslässt.'+(ph&&ph.deload?' Deload-Woche: halbe Sätze.':'')+'</div>';
   return h;
+}
+function veloTodayHint(t){
+  if(!t||t.velo!=='plan') return '';
+  const strength=t.status==='train'||t.status==='done';
+  const txt=strength
+    ? 'Dazu heute <b>Velo '+t.veloMin+' min</b> locker – am besten <b>nach</b> dem Krafttraining oder mit mindestens 6 h Abstand (z. B. Kraft am Morgen, Velo am Abend). Diese Woche passt es nicht anders an einen freien Tag.'
+    : '<b>Velo '+t.veloMin+' min</b> locker – ein freier Tag ohne Krafttraining ist dafür ideal.';
+  return '<div class="last" style="margin-top:10px;display:flex;gap:8px;align-items:flex-start"><span style="flex:none">'+I('bike')+'</span><span>'+txt+' <a href="#" data-action="goto-velo">Zum Velo</a></span></div>';
 }
 function viewTodayCard(wp, pid){
   S._wp=wp;
   const t=wp.today; let h='<div class="card rec">';
   const nextTxt=wp.next?'Nächstes Training: <b>'+esc(wp.next.day.name)+'</b> '+(wp.next.iso===addDays(today(),1)?'morgen':'am '+dateOf(wp.next.iso).toLocaleDateString('de-CH',{weekday:'long'}))+'.':'';
   if(wp.trainedToday){
-    h+='<div class="small muted">Heute</div><h2 style="margin:2px 0 4px">Training erledigt '+I('checkc')+'</h2><p class="small" style="margin:0 0 10px">'+(wp.weekDone?'Alle Trainings dieser Woche sind erledigt. ':'')+nextTxt+'</p>';
+    h+='<div class="small muted">Heute</div><h2 style="margin:2px 0 4px">Training erledigt '+I('checkc')+'</h2><p class="small" style="margin:0 0 10px">'+(wp.weekDone?'Alle Trainings dieser Woche sind erledigt. ':'')+nextTxt+'</p>'+veloTodayHint(t);
     if(wp.anyway && !wp.weekDone) h+='<button class="btn block" data-action="preview" data-day="'+esc(wp.anyway.id)+'">Trotzdem noch trainieren: '+esc(wp.anyway.name)+'</button>';
   } else if(t.status==='train'){
     h+='<div class="small muted">Heute · Training empfohlen</div><h2 style="margin:2px 0 4px">'+esc(t.day.name)+'</h2><p class="small" style="margin:0 0 10px">'+esc(t.reason||'')+'</p>'+
-      '<button class="btn primary block" data-action="preview" data-day="'+esc(t.day.id)+'">Übungen ansehen</button>';
+      '<button class="btn primary block" data-action="preview" data-day="'+esc(t.day.id)+'">Übungen ansehen</button>'+veloTodayHint(t);
   } else {
-    h+='<div class="small muted">Heute</div><h2 style="margin:2px 0 4px">Ruhetag empfohlen '+I('moon')+'</h2><p class="small" style="margin:0 0 10px">'+esc(t.reason||'')+(nextTxt?' '+nextTxt:'')+'</p>';
+    const vday=t.velo==='plan', vdone=t.velo==='done';
+    h+='<div class="small muted">Heute'+(vday?' · kein Krafttraining':'')+'</div><h2 style="margin:2px 0 4px">'+(vday?'Velo-Tag '+I('bike'):vdone?'Velo erledigt '+I('checkc'):'Ruhetag empfohlen '+I('moon'))+'</h2>'+veloTodayHint(t)+'<p class="small" style="margin:'+(vday?'10px':'0')+' 0 10px">'+(vday?'Krafttraining heute Pause. ':'')+esc(vday?(t.reason||'').replace(/^Ruhetag – /,''):(t.reason||''))+(nextTxt?' '+nextTxt:'')+'</p>';
     if(wp.anyway) h+='<button class="btn block" data-action="preview" data-day="'+esc(wp.anyway.id)+'">Trotzdem trainieren: '+esc(wp.anyway.name)+'</button>'+
       (wp.anywayWarn?'<div class="small" style="color:var(--warn);margin-top:6px">Achtung: dieselben Muskeln wie gestern – lieber leichter (mehr Reserve) oder warten.</div>':'');
   }
@@ -1040,6 +1098,9 @@ function viewCardio(){
   let h='<div class="card"><div class="small muted">Velo · Knie-Reha und Aufbau</div><h2 style="margin:2px 0 6px">Diese Woche: '+P.sessions+' × '+P.min+' min'+(P.deload?' (Deload)':'')+'</h2>'+
     '<div class="track" style="height:10px"><div class="fill" style="width:'+Math.min(100,tgtMin?doneMin/tgtMin*100:0)+'%"></div></div>'+
     '<div class="small" style="margin-top:6px">'+wk.length+' von '+P.sessions+' Einheiten · '+doneMin+' von '+tgtMin+' min</div>'+
+    (()=>{ const pid=currentPlanId(), wp=pid&&S.plans&&S.plans[pid]?planWeek(pid):null; if(!wp) return '';
+      const pl=wp.days.filter(d=>d.velo==='plan'); if(!pl.length) return '';
+      return '<div class="small" style="margin-top:6px"><b>Eingeplant:</b> '+pl.map(d=>(d.isToday?'heute':d.wd)+(d.veloShared?' (nach Kraft)':'')).join(', ')+' – im Trainingskalender abgestimmt.</div>'; })()+
     (P.flag?'<div class="last" style="margin-top:8px;color:var(--warn)">'+esc(P.flag)+'</div>':'')+
     '<div class="last" style="margin-top:8px">'+(todayDone?I('checkc')+' Heute erledigt.':wk.length>=P.sessions?'Wochenziel erreicht – weitere Einheiten nur locker und wenn das Knie ruhig ist.':'Heute passt eine Einheit: <b>'+P.min+' min</b> locker im Sitzen, Trittfrequenz 80–90, leichter Widerstand'+(hfmax?', Puls etwa '+Math.round(hfmax*0.6)+'–'+Math.round(hfmax*0.7):'')+'.')+'</div>'+
     (cfg.note?'<div class="small" style="margin-top:8px"><b>Vorgabe Physio:</b> '+esc(cfg.note)+'</div>':'')+'</div>';
@@ -1248,6 +1309,7 @@ document.addEventListener('click', ev=>{
   switch(act){
     case 'plan': if(S.db){ S.preview=null; S.settings.plan=b.dataset.id; render(); dbWrite(()=>S.db.doc('settings/app').set({...S.settings, plan:b.dataset.id})); } break;
     case 'preview': S.preview=b.dataset.day; render(); window.scrollTo(0,0); break;
+    case 'goto-velo': ev.preventDefault(); S.view='velo'; S.preview=null; render(); window.scrollTo(0,0); break;
     case 'week-prev': S.weekOff=Math.max(-8,(S.weekOff||0)-1); render(); break;
     case 'week-next': S.weekOff=Math.min(4,(S.weekOff||0)+1); render(); break;
     case 'adapt-apply': { const a=adaptiveTDEE(); if(a&&!a.need&&S.db){ const goal=(S.calc&&S.calc.goal)||'keep', m=macrosFrom(a.tdee*GOALS_C[goal][2], a.weight, goal);
