@@ -1,5 +1,5 @@
 /* Offline-Unterstützung: App-Dateien zwischenspeichern, immer zuerst die neueste Version holen */
-const CACHE='gym-tracker-v8';
+const CACHE='gym-tracker-v9';
 const FILES=['./','index.html','db.js','seed.js','plans.json','manifest.webmanifest','icons/icon-192.png','icons/icon-512.png'];
 self.addEventListener('install',e=>{ e.waitUntil(caches.open(CACHE).then(c=>c.addAll(FILES))); self.skipWaiting(); });
 self.addEventListener('activate',e=>{ e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k))))); self.clients.claim(); });

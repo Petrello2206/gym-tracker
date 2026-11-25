@@ -225,13 +225,13 @@ function cleanup_(folder) {
 /* Garmin (Personal API) – Ausdauer-Einheiten importieren               */
 /* ------------------------------------------------------------------ */
 // Einrichtung: Projekteinstellungen (Zahnrad) → Skripteigenschaften → Eigenschaft "GARMIN_KEY" = dein Personal API Key.
-// Danach einmal "garminEinrichten" ausführen (fragt nach der Berechtigung für externe Anfragen).
+// Danach einmal "garminEinrichten" ausführen (fragt nach der Berechtigung für externe Anfragen). Import danach per Button in der App.
 const GARMIN_BASE = 'https://personal.connectapi.garmin.com';
 
 function garminEinrichten() {
   if (!PropertiesService.getScriptProperties().getProperty('GARMIN_KEY')) { Logger.log('Zuerst die Skripteigenschaft GARMIN_KEY anlegen.'); return; }
-  const has = ScriptApp.getProjectTriggers().some(t => t.getHandlerFunction() === 'garminSync');
-  if (!has) ScriptApp.newTrigger('garminSync').timeBased().everyHours(1).create();
+  // kein automatischer Abruf – Import nur per Button in der App (alte stündliche Trigger entfernen)
+  ScriptApp.getProjectTriggers().forEach(t => { if (t.getHandlerFunction() === 'garminSync') ScriptApp.deleteTrigger(t); });
   Logger.log('Garmin verbunden. Neue Einheiten: ' + garminSync(60));
 }
 

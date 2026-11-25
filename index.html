@@ -1041,7 +1041,7 @@ function viewCardio(){
   // Garmin
   const cfgS=GT.config();
   h+='<div class="sec">Einheiten</div><div class="card"><div class="row"><b>Garmin</b><span class="spacer"></span>'+(cfgS?'<button class="btn sm" data-action="garmin-sync">Von Garmin laden</button>':'<span class="small muted">erst Google verbinden</span>')+'</div>'+
-    '<div class="small muted" style="margin-top:4px">Velo-Aktivitäten deiner Uhr kommen stündlich automatisch. Ohne Uhr: unten von Hand eintragen.</div>';
+    '<div class="small muted" style="margin-top:4px">Tippe nach einer Einheit auf «Von Garmin laden» – geholt werden die Velo-Aktivitäten der letzten 14 Tage. Ohne Uhr: unten von Hand eintragen.</div>';
   const list=(S.cardio||[]).filter(c=>daysBetween(c.date,today())<=42);
   if(list.length) h+='<div class="list" style="margin-top:8px">'+list.map(c=>{
     const z=c.zones&&c.zones.some(Boolean)?'<div class="zbar">'+c.zones.map((m,i)=>'<span class="z'+(i+1)+'" style="flex:'+m+'"></span>').join('')+'</div>':'';

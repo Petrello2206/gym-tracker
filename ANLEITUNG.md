@@ -54,7 +54,7 @@ Wird `apps-script/Code.gs` geändert: Inhalt im Skript-Editor ersetzen → **Ber
 2. Im Skript-Editor links auf das **Zahnrad (Projekteinstellungen)** → ganz unten **Skripteigenschaften** → **Skripteigenschaft hinzufügen**: Name `GARMIN_KEY`, Wert = dein Schlüssel → **Speichern**.
 3. Neuen Code einfügen (siehe Updates) und **neue Version bereitstellen**.
 4. Funktion **garminEinrichten** wählen → **Ausführen** → Berechtigung für „Externe Dienste“ zulassen.
-   Danach holt das Skript stündlich deine Velo-Einheiten. In der App unter **Velo** gibt es zusätzlich „Von Garmin laden“.
+   Danach holst du die Velo-Einheiten in der App unter **Velo** mit „Von Garmin laden“.
 5. Läuft der Schlüssel ab (Garmin schickt vorher eine Mail): neuen erstellen und bei `GARMIN_KEY` ersetzen.
 
 ## Zyklus-Berichte
