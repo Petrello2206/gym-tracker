@@ -1640,7 +1640,10 @@ function viewNutAdd(){
         '<button class="btn primary block" style="margin-top:10px" data-action="nut-estimate" data-code="'+esc(A.code)+'">'+I('camera')+' Nährwerttabelle in Claude lesen</button>'+
         '<form id="pendForm" style="margin-top:10px"><div class="field"><label>Was ist es? (optional)</label><input name="label" placeholder="z. B. Proteinriegel Schoko" value="'+esc((S.pending[A.code]&&S.pending[A.code].label)||'')+'"></div>'+
         '<div class="field"><label>Menge (g)</label><input name="grams" inputmode="decimal"></div><button class="btn primary block">Erfassen</button></form>'+
-        '';
+        '<details style="margin-top:12px"'+(S.pending[A.code]?' open':'')+'><summary class="small"><b>Werte selbst eintragen (pro 100 g)</b></summary>'+
+        '<form id="per100Form" style="margin-top:8px"><div class="field"><label>Name</label><input name="name" value="'+esc((S.pending[A.code]&&S.pending[A.code].label)||'')+'"></div><div class="grid2">'+
+        MACROS.map(([k,l,u])=>'<div class="field"><label>'+l+' ('+u+'/100 g)</label><input name="'+k+'" inputmode="decimal"></div>').join('')+
+        '</div><div class="small muted" style="margin-bottom:8px">Gilt für alle Einträge mit diesem Barcode – auch die bereits erfassten.</div><button class="btn primary block">Speichern</button></form></details>';
     }
   } else if(A.mode==='off'){
     h+='<div class="last">'+I('clock')+' Suche Barcode '+esc(A.code)+' in Open Food Facts …</div>';
@@ -1887,6 +1890,12 @@ async function nutSubmit(form){
     await ensurePending(A.code,label);
     if(label && S.pending[A.code] && !S.pending[A.code].label) await dbWrite(()=>S.db.doc('pending/'+A.code).update({label}));
     await addItem({meal:A.meal, barcode:A.code, name:label, grams:g}); S.nutAdd=null; render(); toast('Erfasst – Nährwerte fehlen noch'); return; }
+  if(form.id==='per100Form'){
+    const per100={}; for(const [k] of MACROS){ const v=num(f.get(k)); if(v==null){ A.msg='Bitte alle vier Werte pro 100 g ausfüllen.'; render(); return; } per100[k]=v; }
+    const code=A.code, prod={barcode:code, name:String(f.get('name')||'').trim()||'Produkt', brand:'', per100, serving:null, source:'manuell', updatedAt:new Date().toISOString()};
+    if(!await dbWrite(()=>S.db.doc('products/'+code).set(prod))) return;
+    S.products[code]=prod; if(S.pending[code]) await dbWrite(()=>S.db.doc('pending/'+code).delete());
+    S.nutAdd=null; render(); toast('Nährwerte gespeichert'); return; }
   if(form.id==='impForm'){
     const P=A.imp||{};
     if(P.per100){
@@ -1946,7 +1955,7 @@ function loadZXing(){
   if(!loadZXing.p) loadZXing.p=new Promise((res,rej)=>{ const sc=document.createElement('script'); sc.src='https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js'; sc.onload=res; sc.onerror=()=>{ loadZXing.p=null; rej(new Error('nolib')); }; document.head.appendChild(sc); });
   return loadZXing.p;
 }
-document.addEventListener('submit', ev=>{ if(['goalForm','codeForm','prodForm','pendForm','manForm','dishForm','labelForm','impForm'].includes(ev.target.id)){ ev.preventDefault(); nutSubmit(ev.target); } });
+document.addEventListener('submit', ev=>{ if(['goalForm','codeForm','prodForm','pendForm','manForm','dishForm','labelForm','impForm','per100Form'].includes(ev.target.id)){ ev.preventDefault(); nutSubmit(ev.target); } });
 </script>
 
 <script>if('serviceWorker' in navigator && location.protocol==='https:') navigator.serviceWorker.register('sw.js');</script>
