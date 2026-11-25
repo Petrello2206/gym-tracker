@@ -277,7 +277,8 @@ async function init(){
   render();
   const db=window.GT.db; S.db=db;
   GT.onStatus(st=>{ setStatus({local:'nur auf diesem Gerät',idle:'verbunden',loading:'lädt …',saving:'speichert …',synced:'gespeichert',offline:'offline – wird später gespeichert',error:'Sync-Fehler'}[st.state]||st.state); if(S.view==='koerper') softRender(); });
-  setTimeout(()=>{ if(typeof handleHash==='function') handleHash(); },0);
+  const runHash=()=>{ if(typeof handleHash==='function') handleHash(); else setTimeout(runHash,50); };
+  if(document.readyState==='complete') runHash(); else window.addEventListener('load', runHash);
   syncPlans(); loadReports(); document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible'){ syncPlans(); loadReports(); } });
   if(typeof nutInit==='function') nutInit(db);
   const loadTimer = setTimeout(()=>{ if(!S.ready){ setStatus('Daten noch nicht erreichbar'); renderBanner('Die Daten sind gerade nicht erreichbar. Prüfe die Internetverbindung – die App versucht es weiter.'); } }, 10000);
@@ -1653,7 +1654,8 @@ function viewNutAdd(){
     h+='<div><b>'+esc(P.n||'Gericht')+'</b>'+(P.brand?' <span class="muted">· '+esc(P.brand)+'</span>':'')+(per?'<div class="small muted">pro 100 g: '+r0(per.kcal)+' kcal · P '+fmtKg(per.protein)+' · KH '+fmtKg(per.carbs)+' · F '+fmtKg(per.fat)+'</div>':'')+'</div>'+
       '<form id="impForm" style="margin-top:10px">'+(per?'<div class="field"><label>Gegessen (g)</label><input name="grams" data-f="impgrams" inputmode="decimal" value="'+esc(A.grams??(P.g||P.serving||''))+'"></div>':'')+
       '<div class="small" style="margin-bottom:10px">'+(m?r0(m.kcal)+' kcal · <b>P '+r0(m.protein)+' g</b> · KH '+r0(m.carbs)+' g · F '+r0(m.fat)+' g':'Menge eingeben')+'</div>'+
-      (per?'<div class="small muted" style="margin-bottom:8px">Wird '+(A.code?'unter Barcode '+esc(A.code):'unter «Meine Produkte»')+' gespeichert.</div>':'<label class="row small" style="margin-bottom:10px"><input type="checkbox" name="save"> Als «Mein Gericht» speichern</label>')+
+      (per?'<div class="small muted" style="margin-bottom:8px">Wird '+(A.code?'unter Barcode '+esc(A.code):'unter «Meine Produkte»')+' gespeichert.</div>':
+        (A.code&&itemsWithBarcode(A.code).some(i=>i.grams)?'<div class="last" style="margin-bottom:10px">Wird deinem Eintrag <b>'+esc(itemsWithBarcode(A.code)[0].name||A.code)+'</b> ('+r0(itemsWithBarcode(A.code)[0].grams)+' g, '+fmtDate(itemsWithBarcode(A.code)[0].date)+') zugeordnet – es entsteht kein doppelter Eintrag.</div>':'<label class="row small" style="margin-bottom:10px"><input type="checkbox" name="save"> Als «Mein Gericht» speichern</label>'))+
       '<button class="btn primary block">Hinzufügen</button></form>';
   } else if(A.mode==='label'){
     const L=A.label||{}, p=L.per100||{};
@@ -1772,6 +1774,7 @@ function openEstimator(code){
   try{ localStorage.setItem('gt-await', JSON.stringify({code:code||null, meal:(S.nutAdd&&S.nutAdd.meal)||defaultMeal(), at:Date.now()})); }catch(e){}
   window.open(ESTIMATOR_URL, '_blank');
 }
+function itemsWithBarcode(code){ const out=[]; Object.keys(S.nut||{}).forEach(d=>dayItems(d).forEach(i=>{ if(i.barcode===code) out.push({...i,date:d}); })); return out; }
 function handleHash(){
   const h=location.hash.slice(1); if(!h) return;
   const q=new URLSearchParams(h);
@@ -1786,7 +1789,7 @@ function handleHash(){
     let aw=null; try{ aw=JSON.parse(localStorage.getItem('gt-await')||'null'); }catch(e){}
     if(aw && Date.now()-aw.at>3600000) aw=null;
     S.view='ernaehrung'; S.nutDate=today();
-    S.nutAdd={mode:'import', meal:P.meal||(aw&&aw.meal)||defaultMeal(), imp:P, code:(P.per100&&((aw&&aw.code)||(P.code&&validCode(P.code)&&P.code)))||null, grams:null};
+    S.nutAdd={mode:'import', meal:P.meal||(aw&&aw.meal)||defaultMeal(), imp:P, code:(aw&&aw.code)||(P.per100&&P.code&&validCode(P.code)&&P.code)||null, grams:null};
     render(); window.scrollTo(0,0);
   }
 }
@@ -1905,6 +1908,12 @@ async function nutSubmit(form){
       if(!await dbWrite(()=>S.db.doc('products/'+id).set(prod))) return;
       S.products[id]=prod; if(A.code && S.pending[A.code]) await dbWrite(()=>S.db.doc('pending/'+A.code).delete());
       await addItem({meal:A.meal, barcode:id, name:prod.name, grams:g});
+    } else if(A.code && itemsWithBarcode(A.code).some(i=>i.grams)){
+      // Schätzung gehört zu einem bereits erfassten Barcode-Eintrag: Werte pro 100 g daraus ableiten
+      const ref=itemsWithBarcode(A.code).find(i=>i.grams), f100=100/ref.grams;
+      const prod={barcode:A.code, name:ref.name||P.n||'Produkt', brand:'', per100:{kcal:Math.round((+P.k||0)*f100), protein:Math.round((+P.p||0)*f100*10)/10, carbs:Math.round((+P.c||0)*f100*10)/10, fat:Math.round((+P.f||0)*f100*10)/10}, serving:null, source:'Schätzung Claude', updatedAt:new Date().toISOString()};
+      if(!await dbWrite(()=>S.db.doc('products/'+A.code).set(prod))) return;
+      S.products[A.code]=prod; if(S.pending[A.code]) await dbWrite(()=>S.db.doc('pending/'+A.code).delete());
     } else {
       const it={meal:A.meal, name:P.n||'Gericht', est:true, kcal:+P.k||0, protein:+P.p||0, carbs:+P.c||0, fat:+P.f||0};
       await addItem(it);
