@@ -64,6 +64,7 @@ function doGet(e) {
   if (p.action === 'ping') return json_({ ok: true });
   if (p.action === 'pull') return json_(loadDb_());
   if (p.action === 'reports') return json_({ reports: listReports_() });
+  if (p.action === 'garmin') { try { return json_({ ok: true, neu: garminSync() }); } catch (err) { return json_({ error: 'garmin: ' + err.message }); } }
   return json_({ ok: true, info: 'Gym Tracker Backend' });
 }
 
@@ -218,4 +219,75 @@ function cleanup_(folder) {
   const firstOfMonth = {};
   files.forEach(x => { if (!firstOfMonth[x.mon]) firstOfMonth[x.mon] = x.d; });
   files.forEach(x => { if (x.d < limit && firstOfMonth[x.mon] !== x.d) x.f.setTrashed(true); });
+}
+
+/* ------------------------------------------------------------------ */
+/* Garmin (Personal API) – Ausdauer-Einheiten importieren               */
+/* ------------------------------------------------------------------ */
+// Einrichtung: Projekteinstellungen (Zahnrad) → Skripteigenschaften → Eigenschaft "GARMIN_KEY" = dein Personal API Key.
+// Danach einmal "garminEinrichten" ausführen (fragt nach der Berechtigung für externe Anfragen).
+const GARMIN_BASE = 'https://personal.connectapi.garmin.com';
+
+function garminEinrichten() {
+  if (!PropertiesService.getScriptProperties().getProperty('GARMIN_KEY')) { Logger.log('Zuerst die Skripteigenschaft GARMIN_KEY anlegen.'); return; }
+  const has = ScriptApp.getProjectTriggers().some(t => t.getHandlerFunction() === 'garminSync');
+  if (!has) ScriptApp.newTrigger('garminSync').timeBased().everyHours(1).create();
+  Logger.log('Garmin verbunden. Neue Einheiten: ' + garminSync(60));
+}
+
+function garminToken_() {
+  const props = PropertiesService.getScriptProperties();
+  const cached = props.getProperty('GARMIN_TOKEN'), exp = +(props.getProperty('GARMIN_TOKEN_EXP') || 0);
+  if (cached && Date.now() < exp) return cached;
+  const key = props.getProperty('GARMIN_KEY');
+  if (!key) throw new Error('GARMIN_KEY fehlt');
+  const r = UrlFetchApp.fetch(GARMIN_BASE + '/personalapitoken-service/personal-api/personal-api-key/token', {
+    method: 'post', headers: { Authorization: 'ApiKey ' + key.trim(), Accept: '*/*' }, muteHttpExceptions: true });
+  if (r.getResponseCode() !== 200) throw new Error('Token ' + r.getResponseCode() + ': ' + r.getContentText().slice(0, 200));
+  let t = r.getContentText().trim();
+  if (t.charAt(0) === '{') { const j = JSON.parse(t); t = j.access_token || j.accessToken || j.token || ''; }
+  t = t.replace(/^"|"$/g, '');
+  props.setProperty('GARMIN_TOKEN', t);
+  props.setProperty('GARMIN_TOKEN_EXP', String(Date.now() + 23 * 3600 * 1000));
+  return t;
+}
+
+function garminGet_(path) {
+  const r = UrlFetchApp.fetch(GARMIN_BASE + path, { headers: { Authorization: 'Bearer ' + garminToken_(), Accept: 'application/json' }, muteHttpExceptions: true });
+  if (r.getResponseCode() === 401) { PropertiesService.getScriptProperties().deleteProperty('GARMIN_TOKEN'); }
+  if (r.getResponseCode() !== 200) throw new Error(path.split('?')[0] + ' ' + r.getResponseCode() + ': ' + r.getContentText().slice(0, 200));
+  return JSON.parse(r.getContentText());
+}
+
+/** Holt Ausdauer-Einheiten der letzten Tage und speichert sie als cardio/<id> in der Datenbank */
+function garminSync(days) {
+  days = typeof days === 'number' ? days : 14;
+  const fmt = d => Utilities.formatDate(d, 'Europe/Zurich', 'yyyy-MM-dd');
+  const start = fmt(new Date(Date.now() - days * 86400000)), end = fmt(new Date(Date.now() + 86400000));
+  let list = garminGet_('/activitylist-service/activities/search/activities?start=0&limit=100&sortOrder=desc&startDate=' + start + '&endDate=' + end);
+  if (!Array.isArray(list)) list = list.activityList || list.activities || list.items || [];
+  // ein Beispiel zur Kontrolle der Felder ablegen
+  if (list.length) { const f = findFile_(getFolder_(), 'garmin-beispiel.json'); const s = JSON.stringify(list[0], null, 1); if (f) f.setContent(s); else getFolder_().createFile('garmin-beispiel.json', s, 'application/json'); }
+  const lock = LockService.getScriptLock(); lock.waitLock(20000);
+  let neu = 0;
+  try {
+    const db = loadDb_(), now = Date.now();
+    list.forEach(a => {
+      const id = String(a.activityId || a.id || a.summaryId || ''); if (!id) return;
+      const type = String((a.activityType && (a.activityType.typeKey || a.activityType)) || a.activityTypeKey || a.type || '').toLowerCase();
+      if (/strength|fitness_equipment|yoga|pilates/.test(type)) return;   // Krafttraining läuft über den Gym Tracker
+      const z = [1, 2, 3, 4, 5].map(i => Math.round((a['hrTimeInZone_' + i] || 0) / 60));
+      const startLocal = String(a.startTimeLocal || a.startTime || a.startTimeGMT || '');
+      const doc = { id: id, source: 'garmin', date: startLocal.slice(0, 10), start: startLocal.slice(11, 16), type: type, name: a.activityName || a.name || type,
+        min: Math.round((a.duration || a.movingDuration || a.elapsedDuration || 0) / 60), km: a.distance ? Math.round(a.distance / 100) / 10 : null,
+        avgHr: a.averageHR || a.averageHeartRate || null, maxHr: a.maxHR || a.maxHeartRate || null, kcal: a.calories || a.activeKilocalories || null,
+        avgW: a.avgPower || a.averagePower || null, cad: Math.round(a.averageBikingCadenceInRevPerMinute || a.averageBikeCadence || a.avgBikeCadence || 0) || null, zones: z.some(Boolean) ? z : null, te: a.aerobicTrainingEffect || null };
+      const p = 'cardio/' + id, old = db.docs[p];
+      if (old && JSON.stringify(old.data) === JSON.stringify(Object.assign({}, old.data, doc))) return;
+      db.docs[p] = { data: Object.assign({}, old ? old.data : {}, doc), ts: now }; neu++;
+    });
+    if (neu) saveDb_(db);
+    PropertiesService.getScriptProperties().setProperty('GARMIN_LAST', new Date().toISOString());
+  } finally { lock.releaseLock(); }
+  return neu;
 }

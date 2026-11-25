@@ -48,6 +48,15 @@ Foto → Schätzen → **In Gym Tracker übernehmen** → in der App bestätigen
 Änderungen an der App landen in diesem Repository. Auf dem Handy die App einmal schliessen und neu öffnen – dann ist die neue Version da.
 Wird `apps-script/Code.gs` geändert: Inhalt im Skript-Editor ersetzen → **Bereitstellen → Bereitstellungen verwalten → Bearbeiten (Stift) → Version: Neue Version → Bereitstellen**. Die URL bleibt gleich.
 
+## Garmin (Velo-Einheiten)
+
+1. Auf https://connect.garmin.com anmelden → **Einstellungen → Konto → Personal API Token** (direkt: https://connect.garmin.com/app/settings/personalApiToken) → Schlüssel erstellen, Ablauf z. B. 1 Jahr. Der Schlüssel wird **nur einmal** angezeigt – sofort kopieren.
+2. Im Skript-Editor links auf das **Zahnrad (Projekteinstellungen)** → ganz unten **Skripteigenschaften** → **Skripteigenschaft hinzufügen**: Name `GARMIN_KEY`, Wert = dein Schlüssel → **Speichern**.
+3. Neuen Code einfügen (siehe Updates) und **neue Version bereitstellen**.
+4. Funktion **garminEinrichten** wählen → **Ausführen** → Berechtigung für „Externe Dienste“ zulassen.
+   Danach holt das Skript stündlich deine Velo-Einheiten. In der App unter **Velo** gibt es zusätzlich „Von Garmin laden“.
+5. Läuft der Schlüssel ab (Garmin schickt vorher eine Mail): neuen erstellen und bei `GARMIN_KEY` ersetzen.
+
 ## Zyklus-Berichte
 
 Nach Woche 6, 13 und 16 erstellt Claude eine Auswertung und legt sie im Drive-Ordner unter **Berichte** ab.

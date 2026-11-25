@@ -118,6 +118,7 @@
     async connect(url,token){ cfg={url:url.trim(), token:token.trim()}; await call({action:'ping'}); save(LS_CFG,cfg); await pull(); return true; },
     disconnect(){ cfg=null; localStorage.removeItem(LS_CFG); setState('local'); },
     pull, flush,
+    async garmin(){ if(!cfg) throw new Error('nicht verbunden'); const j=await call({action:'garmin'}); return j.neu||0; },
     async reports(){ if(!cfg||!navigator.onLine) return null; const j=await call({action:'reports'}); return j.reports||[]; },
     pending(){ return outbox.length; },
     seedIfEmpty(path,data){ if(!store.docs[path] && !store.deleted[path]){ store.docs[path]={data:clone(data),ts:1}; persist(); } },

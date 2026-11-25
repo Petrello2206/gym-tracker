@@ -191,6 +191,9 @@ label.btn{text-align:center}
 .report-new{border-color:var(--accent);background:var(--accent-soft)}
 .rep-ic{width:36px;height:36px;border-radius:50%;background:var(--card);color:var(--accent);display:flex;align-items:center;justify-content:center;flex:none}
 .rep-ul{margin:6px 0 0;padding-left:20px}.rep-ul li{margin:3px 0}
+.painrow{display:grid;grid-template-columns:repeat(11,minmax(0,1fr));gap:4px}.painrow .btn{padding:8px 0;min-width:0}
+.zbar{display:flex;height:6px;border-radius:3px;overflow:hidden;margin-top:6px;background:var(--line)}
+.zbar .z1{background:#9bb7e6}.zbar .z2{background:#3f8f5a}.zbar .z3{background:#d9a72b}.zbar .z4{background:#e07a2e}.zbar .z5{background:#c9342b}
 .toast{position:fixed;top:12px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);
   padding:8px 14px;border-radius:10px;font-size:14px;z-index:50;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.show{opacity:1}
@@ -217,6 +220,7 @@ label.btn{text-align:center}
   <button data-view="training"><span class="ico"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 6.5v11M3.5 9v6M17.5 6.5v11M20.5 9v6M6.5 12h11"/></svg></span>Training</button>
   <button data-view="verlauf"><span class="ico"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg></span>Fortschritt</button>
   <button data-view="koerper"><span class="ico"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3.5" width="18" height="17" rx="4"/><path d="M8 10a4 4 0 0 1 8 0"/><path d="M12 10l1.6-2.2"/></svg></span>Körper</button>
+  <button data-view="velo"><span class="ico"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5.5" cy="17" r="3.5"/><circle cx="18.5" cy="17" r="3.5"/><path d="M5.5 17l4-8h6l3 8M9.5 9L12 17h-1M14 5.5h2.5l-1 3.5"/></svg></span>Velo</button>
   <button data-view="ernaehrung"><span class="ico"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7.5c-1.6-1.2-5-1.6-6.6 1.4-1.6 3 -.6 7.6 1.9 10.4 1.4 1.6 2.9 2 4.7 1.1 1.8.9 3.3.5 4.7-1.1 2.5-2.8 3.5-7.4 1.9-10.4-1.6-3-5-2.6-6.6-1.4z"/><path d="M12 7.5c0-2.2 1.2-3.7 3.2-4.3"/></svg></span>Ernährung</button>
 </nav>
 <div class="toast" id="toast"></div>
@@ -225,7 +229,7 @@ label.btn{text-align:center}
 <script src="seed.js"></script>
 <script>
 const ESTIMATOR_URL="https://claude.ai/artifact/5KRkC85a7SXE4aiNQR96ok"; // Schätz-App in Claude (gratis nutzbar)
-const ICONS={"coffee":"<path d=\"M4 9h13v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z\"/><path d=\"M17 10h1.5a2.5 2.5 0 0 1 0 5H17\"/><path d=\"M8 3v3M12 3v3\"/>","sun":"<circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4L6 18M18 6l1.4-1.4\"/>","trash":"<path d=\"M4 7h16M10 11v6M14 11v6\"/><path d=\"M6 7l1 13h10l1-13\"/><path d=\"M9 7V4h6v3\"/>","dumbbell": "<path d=\"M6.5 6.5v11M3.5 9v6M17.5 6.5v11M20.5 9v6M6.5 12h11\"/>", "trend": "<path d=\"M3 17l6-6 4 4 8-8\"/><path d=\"M15 7h6v6\"/>", "scale": "<rect x=\"3\" y=\"3.5\" width=\"18\" height=\"17\" rx=\"4\"/><path d=\"M8 10a4 4 0 0 1 8 0\"/><path d=\"M12 10l1.6-2.2\"/>", "apple": "<path d=\"M12 7.5c-1.6-1.2-5-1.6-6.6 1.4-1.6 3 -.6 7.6 1.9 10.4 1.4 1.6 2.9 2 4.7 1.1 1.8.9 3.3.5 4.7-1.1 2.5-2.8 3.5-7.4 1.9-10.4-1.6-3-5-2.6-6.6-1.4z\"/><path d=\"M12 7.5c0-2.2 1.2-3.7 3.2-4.3\"/>", "left": "<path d=\"M15 18l-6-6 6-6\"/>", "right": "<path d=\"M9 18l6-6-6-6\"/>", "play": "<path d=\"M7 5.5v13l11-6.5z\" fill=\"currentColor\" stroke=\"none\"/>", "check": "<path d=\"M5 12.5l4.5 4.5L19 7.5\"/>", "x": "<path d=\"M6 6l12 12M18 6L6 18\"/>", "checkc": "<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M8 12.5l2.7 2.7L16.2 9.5\"/>", "moon": "<path d=\"M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z\"/>", "target": "<circle cx=\"12\" cy=\"12\" r=\"9\"/><circle cx=\"12\" cy=\"12\" r=\"5\"/><circle cx=\"12\" cy=\"12\" r=\"1\" fill=\"currentColor\"/>", "home": "<path d=\"M3.5 11L12 4l8.5 7\"/><path d=\"M5.5 9.5V20h13V9.5\"/><path d=\"M10 20v-5h4v5\"/>", "book": "<path d=\"M12 6.5C10 5 7 4.5 3.5 5v13.5C7 18 10 18.5 12 20c2-1.5 5-2 8.5-1.5V5C17 4.5 14 5 12 6.5z\"/><path d=\"M12 6.5V20\"/>", "pencil": "<path d=\"M4 20h4L19.5 8.5a2.1 2.1 0 0 0-4-4L4 16z\"/><path d=\"M14 6l4 4\"/>", "note": "<rect x=\"5\" y=\"3.5\" width=\"14\" height=\"17\" rx=\"2\"/><path d=\"M9 9h6M9 13h6M9 17h3\"/>", "ruler": "<rect x=\"2.5\" y=\"8\" width=\"19\" height=\"8\" rx=\"1.5\"/><path d=\"M6.5 8v3M10.5 8v4M14.5 8v3M18.5 8v4\"/>", "clock": "<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12 7v5l3 2\"/>", "camera": "<path d=\"M4 8.5h3l2-3h6l2 3h3V19H4z\"/><circle cx=\"12\" cy=\"13\" r=\"3.5\"/>", "image": "<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2.5\"/><circle cx=\"9\" cy=\"10\" r=\"1.6\"/><path d=\"M21 16l-5-5-9 9\"/>", "utensils": "<path d=\"M7 3v18M4.5 3v5a2.5 2.5 0 0 0 5 0V3\"/><path d=\"M18 21V3c-2.2 1-3.5 3.3-3.5 6.5V13H18\"/>", "star": "<path d=\"M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.9l-5.2 2.8 1-5.9-4.3-4.1 5.9-.8z\"/>", "keyboard": "<rect x=\"2.5\" y=\"6\" width=\"19\" height=\"12\" rx=\"2\"/><path d=\"M6.5 10h.01M10.5 10h.01M14.5 10h.01M17.5 10h.01M7.5 14h9\"/>"};
+const ICONS={"bike":"<circle cx=\"5.5\" cy=\"17\" r=\"3.5\"/><circle cx=\"18.5\" cy=\"17\" r=\"3.5\"/><path d=\"M5.5 17l4-8h6l3 8M9.5 9L12 17h-1M14 5.5h2.5l-1 3.5\"/>","coffee":"<path d=\"M4 9h13v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z\"/><path d=\"M17 10h1.5a2.5 2.5 0 0 1 0 5H17\"/><path d=\"M8 3v3M12 3v3\"/>","sun":"<circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4L6 18M18 6l1.4-1.4\"/>","trash":"<path d=\"M4 7h16M10 11v6M14 11v6\"/><path d=\"M6 7l1 13h10l1-13\"/><path d=\"M9 7V4h6v3\"/>","dumbbell": "<path d=\"M6.5 6.5v11M3.5 9v6M17.5 6.5v11M20.5 9v6M6.5 12h11\"/>", "trend": "<path d=\"M3 17l6-6 4 4 8-8\"/><path d=\"M15 7h6v6\"/>", "scale": "<rect x=\"3\" y=\"3.5\" width=\"18\" height=\"17\" rx=\"4\"/><path d=\"M8 10a4 4 0 0 1 8 0\"/><path d=\"M12 10l1.6-2.2\"/>", "apple": "<path d=\"M12 7.5c-1.6-1.2-5-1.6-6.6 1.4-1.6 3 -.6 7.6 1.9 10.4 1.4 1.6 2.9 2 4.7 1.1 1.8.9 3.3.5 4.7-1.1 2.5-2.8 3.5-7.4 1.9-10.4-1.6-3-5-2.6-6.6-1.4z\"/><path d=\"M12 7.5c0-2.2 1.2-3.7 3.2-4.3\"/>", "left": "<path d=\"M15 18l-6-6 6-6\"/>", "right": "<path d=\"M9 18l6-6-6-6\"/>", "play": "<path d=\"M7 5.5v13l11-6.5z\" fill=\"currentColor\" stroke=\"none\"/>", "check": "<path d=\"M5 12.5l4.5 4.5L19 7.5\"/>", "x": "<path d=\"M6 6l12 12M18 6L6 18\"/>", "checkc": "<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M8 12.5l2.7 2.7L16.2 9.5\"/>", "moon": "<path d=\"M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z\"/>", "target": "<circle cx=\"12\" cy=\"12\" r=\"9\"/><circle cx=\"12\" cy=\"12\" r=\"5\"/><circle cx=\"12\" cy=\"12\" r=\"1\" fill=\"currentColor\"/>", "home": "<path d=\"M3.5 11L12 4l8.5 7\"/><path d=\"M5.5 9.5V20h13V9.5\"/><path d=\"M10 20v-5h4v5\"/>", "book": "<path d=\"M12 6.5C10 5 7 4.5 3.5 5v13.5C7 18 10 18.5 12 20c2-1.5 5-2 8.5-1.5V5C17 4.5 14 5 12 6.5z\"/><path d=\"M12 6.5V20\"/>", "pencil": "<path d=\"M4 20h4L19.5 8.5a2.1 2.1 0 0 0-4-4L4 16z\"/><path d=\"M14 6l4 4\"/>", "note": "<rect x=\"5\" y=\"3.5\" width=\"14\" height=\"17\" rx=\"2\"/><path d=\"M9 9h6M9 13h6M9 17h3\"/>", "ruler": "<rect x=\"2.5\" y=\"8\" width=\"19\" height=\"8\" rx=\"1.5\"/><path d=\"M6.5 8v3M10.5 8v4M14.5 8v3M18.5 8v4\"/>", "clock": "<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12 7v5l3 2\"/>", "camera": "<path d=\"M4 8.5h3l2-3h6l2 3h3V19H4z\"/><circle cx=\"12\" cy=\"13\" r=\"3.5\"/>", "image": "<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2.5\"/><circle cx=\"9\" cy=\"10\" r=\"1.6\"/><path d=\"M21 16l-5-5-9 9\"/>", "utensils": "<path d=\"M7 3v18M4.5 3v5a2.5 2.5 0 0 0 5 0V3\"/><path d=\"M18 21V3c-2.2 1-3.5 3.3-3.5 6.5V13H18\"/>", "star": "<path d=\"M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.9l-5.2 2.8 1-5.9-4.3-4.1 5.9-.8z\"/>", "keyboard": "<rect x=\"2.5\" y=\"6\" width=\"19\" height=\"12\" rx=\"2\"/><path d=\"M6.5 10h.01M10.5 10h.01M14.5 10h.01M17.5 10h.01M7.5 14h9\"/>"};
 function I(n){ return '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">'+(ICONS[n]||'')+'</svg>'; }
 
 /* ============================================================
@@ -291,6 +295,8 @@ async function init(){
   }, onErr);
   db.doc('library/exercises').onSnapshot(snap=>{ S.library=snap.exists?snap.data():{}; if(S.view==='technik') softRender(); }, ()=>{});
   db.doc('settings/calc').onSnapshot(snap=>{ if(snap.exists){ S.calc=snap.data(); if(S.view==='koerper') softRender(); } }, ()=>{});
+  db.collection('cardio').onSnapshot(snap=>{ S.cardio=snap.docs.map(d=>({...d.data(), id:d.id})).sort((a,b)=>(b.date+(b.start||''))>(a.date+(a.start||''))?1:-1); if(S.view==='velo') softRender(); }, ()=>{});
+  db.doc('settings/cardio').onSnapshot(snap=>{ S.cardioCfg=snap.exists?snap.data():null; if(S.view==='velo') softRender(); }, ()=>{});
   db.collection('body').orderBy('date','desc').limit(500).onSnapshot(snap=>{
     S.body = snap.docs.map(d=>({id:d.id, ...d.data()}));
     if(!snap.metadata.fromCache) done('body'); if(S.view==='koerper') softRender();
@@ -663,7 +669,8 @@ function render(){
   document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on', b.dataset.view===(S.view==='technik'||S.view==='bericht'?'training':S.view)));
   const m=$('#main');
   if(S.offline){ m.innerHTML='<div class="card"><h2>Speicher nicht verfügbar</h2><p class="muted">Öffne die App über deinen Claude-Link und melde dich an. Ohne Anmeldung kann nichts gespeichert werden.</p></div>'; return; }
-  if(S.view==='bericht') m.innerHTML = viewReport();
+  if(S.view==='velo') m.innerHTML = viewCardio();
+  else if(S.view==='bericht') m.innerHTML = viewReport();
   else if(S.view==='technik') m.innerHTML = viewTechnik();
   else if(S.view==='training') m.innerHTML = S.active ? viewActive() : (S.preview ? viewPreview() : viewStart());
   else if(S.view==='verlauf') m.innerHTML = viewProgress();
@@ -992,6 +999,75 @@ function viewSync(){
   h+='<div class="grid2" style="margin-top:10px"><button class="btn" data-action="export">Daten exportieren</button><label class="btn" style="cursor:pointer">Backup importieren<input type="file" accept="application/json,.json" data-action="import" style="display:none"></label></div></div>';
   return h;
 }
+/* ---------- Velo (Knie-Reha / Aufbau vor der 2. OP) ---------- */
+const CARDIO_DEF={sessions:3, startMin:20, maxMin:45, step:5, painMax:3, note:''};
+function cardioCfg(){ return {...CARDIO_DEF, ...(S.cardioCfg||{})}; }
+const isBike=c=>/cycl|bik|ride|velo|ergo/.test((c.type||'')+' '+(c.name||'').toLowerCase());
+function cardioWeek(mon){ const end=addDays(mon,6); return (S.cardio||[]).filter(c=>c.date>=mon&&c.date<=end&&isBike(c)); }
+/* Wochenziel: Start mit startMin; +step pro Woche, wenn letzte Woche erfüllt und Knie ruhig; Rückschritt bei Schmerz > painMax oder Schwellung */
+function cardioPlan(){
+  const cfg=cardioCfg(), all=(S.cardio||[]).filter(isBike); const mon=mondayOf(today());
+  const first=all.length?mondayOf(all[all.length-1].date):mon;
+  let min=cfg.startMin, flag=null, w=first;
+  while(w<mon){
+    const s=cardioWeek(w), pains=s.map(c=>c.pain).filter(v=>v!=null), swell=s.some(c=>c.swell);
+    const bad=swell||pains.some(p=>p>cfg.painMax), good=s.length>=cfg.sessions && s.every(c=>c.min>=min*0.8) && !bad && pains.length>=Math.min(s.length,1);
+    if(bad){ min=Math.max(10,min-cfg.step); flag='Letzte Woche: Schmerz über '+cfg.painMax+'/10 oder Schwellung → Dauer reduziert. Mit der Physio besprechen.'; }
+    else if(good){ min=Math.min(cfg.maxMin,min+cfg.step); flag=null; }
+    else flag=null;
+    w=addDays(w,7);
+  }
+  const info=cycleInfo(); if(info&&info.deload) min=Math.max(10,Math.round(min*0.75/5)*5);
+  return {min, sessions:cfg.sessions, flag, deload:!!(info&&info.deload)};
+}
+function viewCardio(){
+  const cfg=cardioCfg(), P=cardioPlan(), mon=mondayOf(today()), wk=cardioWeek(mon);
+  const doneMin=wk.reduce((a,c)=>a+(c.min||0),0), tgtMin=P.min*P.sessions, todayDone=wk.some(c=>c.date===today());
+  const age=(S.calc&&S.calc.age)||null, hfmax=age?Math.round(208-0.7*age):null;
+  let h='<div class="card"><div class="small muted">Velo · Knie-Reha und Aufbau</div><h2 style="margin:2px 0 6px">Diese Woche: '+P.sessions+' × '+P.min+' min'+(P.deload?' (Deload)':'')+'</h2>'+
+    '<div class="track" style="height:10px"><div class="fill" style="width:'+Math.min(100,tgtMin?doneMin/tgtMin*100:0)+'%"></div></div>'+
+    '<div class="small" style="margin-top:6px">'+wk.length+' von '+P.sessions+' Einheiten · '+doneMin+' von '+tgtMin+' min</div>'+
+    (P.flag?'<div class="last" style="margin-top:8px;color:var(--warn)">'+esc(P.flag)+'</div>':'')+
+    '<div class="last" style="margin-top:8px">'+(todayDone?I('checkc')+' Heute erledigt.':wk.length>=P.sessions?'Wochenziel erreicht – weitere Einheiten nur locker und wenn das Knie ruhig ist.':'Heute passt eine Einheit: <b>'+P.min+' min</b> locker im Sitzen, Trittfrequenz 80–90, leichter Widerstand'+(hfmax?', Puls etwa '+Math.round(hfmax*0.6)+'–'+Math.round(hfmax*0.7):'')+'.')+'</div>'+
+    (cfg.note?'<div class="small" style="margin-top:8px"><b>Vorgabe Physio:</b> '+esc(cfg.note)+'</div>':'')+'</div>';
+  // offene Knie-Abfrage
+  const open=(S.cardio||[]).filter(isBike).filter(c=>c.pain==null && daysBetween(c.date,today())<=7).slice(0,3);
+  open.forEach(c=>{
+    h+='<div class="card" style="border-color:var(--accent)"><b>Wie ging es dem Knie?</b><div class="small muted">'+fmtDate(c.date)+(c.start?' '+esc(c.start):'')+' · '+esc(c.name||'Velo')+' · '+(c.min||0)+' min</div>'+
+      '<div class="small" style="margin:8px 0 4px">Schmerz während/nach der Einheit (0 = keiner, 10 = maximal)</div><div class="painrow">'+[0,1,2,3,4,5,6,7,8,9,10].map(v=>'<button class="btn sm" data-action="cardio-pain" data-id="'+esc(c.id)+'" data-v="'+v+'">'+v+'</button>').join('')+'</div></div>';
+  });
+  const swellAsk=(S.cardio||[]).filter(isBike).find(c=>c.pain!=null && c.swell==null && c.date<today() && daysBetween(c.date,today())<=3);
+  if(swellAsk) h+='<div class="card"><b>Knie am Morgen danach</b><div class="small muted">Nach der Einheit vom '+fmtDate(swellAsk.date)+'</div><div class="grid2" style="margin-top:8px"><button class="btn" data-action="cardio-swell" data-id="'+esc(swellAsk.id)+'" data-v="0">Ruhig, nicht geschwollen</button><button class="btn" data-action="cardio-swell" data-id="'+esc(swellAsk.id)+'" data-v="1">Geschwollen / gereizt</button></div></div>';
+  // Garmin
+  const cfgS=GT.config();
+  h+='<div class="sec">Einheiten</div><div class="card"><div class="row"><b>Garmin</b><span class="spacer"></span>'+(cfgS?'<button class="btn sm" data-action="garmin-sync">Von Garmin laden</button>':'<span class="small muted">erst Google verbinden</span>')+'</div>'+
+    '<div class="small muted" style="margin-top:4px">Velo-Aktivitäten deiner Uhr kommen stündlich automatisch. Ohne Uhr: unten von Hand eintragen.</div>';
+  const list=(S.cardio||[]).filter(c=>daysBetween(c.date,today())<=42);
+  if(list.length) h+='<div class="list" style="margin-top:8px">'+list.map(c=>{
+    const z=c.zones&&c.zones.some(Boolean)?'<div class="zbar">'+c.zones.map((m,i)=>'<span class="z'+(i+1)+'" style="flex:'+m+'"></span>').join('')+'</div>':'';
+    return '<div class="item" style="display:block"><div class="row"><b style="flex:1">'+esc(c.name||'Velo')+'</b><span class="small muted">'+fmtDate(c.date)+'</span></div>'+
+      '<div class="small muted">'+[(c.min||0)+' min', c.km?fmtKg(c.km)+' km':'', c.avgHr?'Ø '+c.avgHr+' bpm':'', c.cad?c.cad+' U/min':'', c.avgW?c.avgW+' W':'', c.pain!=null?'Knie '+c.pain+'/10':'', c.swell?'geschwollen':''].filter(Boolean).join(' · ')+'</div>'+z+'</div>';
+  }).join('')+'</div>';
+  else h+='<div class="small muted" style="margin-top:8px">Noch keine Einheiten.</div>';
+  h+='<details style="margin-top:10px"><summary class="small"><b>Von Hand eintragen</b></summary><form id="cardioForm" style="margin-top:8px"><div class="grid2">'+
+    '<div class="field"><label>Datum</label><input type="date" name="date" value="'+today()+'"></div><div class="field"><label>Minuten</label><input name="min" inputmode="numeric"></div>'+
+    '<div class="field"><label>Ø Puls (optional)</label><input name="avgHr" inputmode="numeric"></div><div class="field"><label>Knie-Schmerz 0–10</label><input name="pain" inputmode="numeric"></div>'+
+    '</div><button class="btn primary block">Speichern</button></form></details></div>';
+  // Einstellungen
+  h+='<div class="sec">Vorgaben</div><div class="card"><details><summary><b>Plan anpassen</b> <span class="small muted">· aktuell '+cfg.sessions+'×/Woche, '+cfg.startMin+'→'+cfg.maxMin+' min</span></summary>'+
+    '<form id="cardioCfgForm" style="margin-top:10px"><div class="grid2">'+
+    '<div class="field"><label>Einheiten pro Woche</label><input name="sessions" inputmode="numeric" value="'+cfg.sessions+'"></div>'+
+    '<div class="field"><label>Start-Dauer (min)</label><input name="startMin" inputmode="numeric" value="'+cfg.startMin+'"></div>'+
+    '<div class="field"><label>Maximal (min)</label><input name="maxMin" inputmode="numeric" value="'+cfg.maxMin+'"></div>'+
+    '<div class="field"><label>Steigerung/Woche (min)</label><input name="step" inputmode="numeric" value="'+cfg.step+'"></div>'+
+    '<div class="field"><label>Schmerzgrenze (0–10)</label><input name="painMax" inputmode="numeric" value="'+cfg.painMax+'"></div></div>'+
+    '<div class="field"><label>Vorgabe der Physio (Notiz)</label><input name="note" value="'+esc(cfg.note||'')+'" placeholder="z. B. Widerstand max. Stufe 4, Sattel hoch"></div>'+
+    '<button class="btn primary block">Speichern</button></form></details>'+
+    '<div class="small muted" style="margin-top:10px">So steigert die App: Hast du letzte Woche alle Einheiten gemacht, lag der Knie-Schmerz höchstens bei der Schmerzgrenze und war das Knie am Morgen danach nicht geschwollen, wird jede Einheit um die Steigerung länger. Bei mehr Schmerz oder Schwellung wird sie kürzer. Die Vorgaben deiner Physio haben Vorrang – trag sie hier ein.</div></div>';
+  h+='<div class="card"><details><summary><b>Knie-Hinweise fürs Velo</b></summary><ul class="rep-ul small">'+
+    '<li>Sattel so hoch, dass das Knie unten nur leicht gebeugt ist – zu tief belastet das Knie stärker.</li><li>Im Sitzen fahren, kein Wiegetritt, gleichmässig rund treten.</li><li>Leichter Widerstand, Trittfrequenz 80–90 U/min; Dauer vor Widerstand steigern.</li><li>Ergometer oder flache Strecke bevorzugen; keine abrupten Antritte.</li><li>Schmerz bis zur Schmerzgrenze ist ok, wenn er bis zum nächsten Morgen abklingt und das Knie nicht anschwillt.</li><li>Kräftigungsübungen fürs Bein (z. B. für den Quadrizeps) gibt die Physio vor – das Velo ersetzt sie nicht.</li></ul></details></div>';
+  return h;
+}
 function viewBody(){
   const t=today(), cur=S.body.find(b=>b.date===t)||{};
   let h='<div class="card"><h2>Körpergewicht</h2><form id="bodyForm"><div class="grid2">'+
@@ -1163,6 +1239,9 @@ document.addEventListener('click', ev=>{
     case 'week-next': S.weekOff=Math.min(4,(S.weekOff||0)+1); render(); break;
     case 'adapt-apply': { const a=adaptiveTDEE(); if(a&&!a.need&&S.db){ const goal=(S.calc&&S.calc.goal)||'keep', m=macrosFrom(a.tdee*GOALS_C[goal][2], a.weight, goal);
       dbWrite(()=>S.db.doc('settings/nutrition').set({...m, source:'verbrauch', goal, updated:today()})).then(ok=>ok&&toast('Tagesziele angepasst: '+m.kcal+' kcal')); } break; }
+    case 'cardio-pain': { const c=(S.cardio||[]).find(x=>x.id===b.dataset.id); if(c) dbWrite(()=>S.db.doc('cardio/'+c.id).update({pain:+b.dataset.v})).then(()=>toast('Gespeichert')); break; }
+    case 'cardio-swell': { const c=(S.cardio||[]).find(x=>x.id===b.dataset.id); if(c) dbWrite(()=>S.db.doc('cardio/'+c.id).update({swell:b.dataset.v==='1'})).then(()=>toast('Gespeichert')); break; }
+    case 'garmin-sync': { b.disabled=true; b.textContent='Lädt …'; GT.garmin().then(n=>{ toast(n?n+' neue Einheit(en)':'Keine neuen Einheiten'); return GT.pull(); }).catch(e=>toast('Garmin: '+(e.message||e))).finally(()=>render()); break; }
     case 'report-open': { S.reportId=b.dataset.id; S.view='bericht'; const rd=reportsRead(); if(!rd.includes(S.reportId)){ rd.push(S.reportId); try{ localStorage.setItem('gt-reports-read',JSON.stringify(rd)); }catch(e){} } render(); window.scrollTo(0,0); break; }
     case 'report-back': S.view='training'; render(); window.scrollTo(0,0); break;
     case 'sync-now': GT.pull(); toast('Wird abgeglichen …'); break;
@@ -1210,6 +1289,11 @@ document.addEventListener('submit', ev=>{
   if(ev.target.id==='bodyForm'){ ev.preventDefault(); saveBody(ev.target,['weight']); }
   if(ev.target.id==='measureForm'){ ev.preventDefault(); saveBody(ev.target,['arm','chest','waist']); }
   if(ev.target.id==='calcForm'){ ev.preventDefault(); saveCalc(ev.target); }
+  if(ev.target.id==='cardioForm'){ ev.preventDefault(); const f=new FormData(ev.target), m=num(f.get('min')); if(!m){ toast('Bitte Minuten eintragen'); return; }
+    const id='hand-'+Date.now().toString(36), d={id, source:'hand', date:f.get('date')||today(), type:'cycling', name:'Velo / Ergometer', min:m, avgHr:num(f.get('avgHr')), pain:num(f.get('pain'))};
+    dbWrite(()=>S.db.doc('cardio/'+id).set(d)).then(()=>{ toast('Gespeichert'); ev.target.reset(); }); }
+  if(ev.target.id==='cardioCfgForm'){ ev.preventDefault(); const f=new FormData(ev.target), c={}; ['sessions','startMin','maxMin','step','painMax'].forEach(k=>{ const v=num(f.get(k)); if(v!=null) c[k]=v; }); c.note=String(f.get('note')||'').trim();
+    dbWrite(()=>S.db.doc('settings/cardio').set(c)).then(()=>toast('Vorgaben gespeichert')); }
   if(ev.target.id==='syncForm'){ ev.preventDefault(); const f=new FormData(ev.target); GT.connect(String(f.get('url')||''),String(f.get('token')||'')).then(()=>{ toast('Verbunden'); render(); }).catch(e=>toast('Verbindung fehlgeschlagen: '+(e.message||e))); }
   if(ev.target.id==='cycleForm'){ ev.preventDefault(); const v=new FormData(ev.target).get('start'); if(v&&S.db){ const st=mondayOf(String(v)); S.settings.cycleStart=st; render(); dbWrite(()=>S.db.doc('settings/app').set({...S.settings, cycleStart:st})).then(ok=>ok&&toast('Zyklus startet am '+fmtDate(st))); } }
 });
